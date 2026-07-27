@@ -14,10 +14,9 @@
   html, body { margin: 0; min-height: 100%; }
   body { font-family: "Space Grotesk", system-ui, sans-serif; color: #f3f7f6; background: #0a140f; overflow-x: hidden; }
 
-  #photo  { position: fixed; inset: 0; z-index: 0; background: url(forest.jpg) center/cover no-repeat; }
+  #gl     { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; }
   #scrim  { position: fixed; inset: 0; z-index: 1; pointer-events: none;
-    background: radial-gradient(120% 90% at 50% 30%, rgba(8,16,14,.15) 0%, rgba(8,16,14,.5) 55%, rgba(5,11,9,.8) 100%); }
-  #weather{ position: fixed; inset: 0; z-index: 2; pointer-events: none; }
+    background: radial-gradient(120% 90% at 50% 32%, rgba(4,6,14,.08) 0%, rgba(4,6,14,.40) 60%, rgba(2,3,10,.70) 100%); }
 
   .app { position: relative; z-index: 3; margin: 0 auto; padding: 6vh 2in 14vh;   /* 2-inch gutter each side */
     display: flex; flex-direction: column; align-items: center; gap: 22px; text-align: center; }
@@ -81,9 +80,8 @@
 </style>
 </head>
 <body>
-<div id="photo"></div>
+<canvas id="gl"></canvas>
 <div id="scrim"></div>
-<canvas id="weather"></canvas>
 
 <div class="app">
   <div class="glow datebox"><h1 class="date" id="today"></h1></div>
@@ -570,25 +568,55 @@ document.querySelectorAll(".tab").forEach(tab => tab.onclick = () => {
 
 render();
 
-// ---------- drifting mist weather ----------
-const cv = document.getElementById("weather"), ctx = cv.getContext("2d");
-let W, H, puffs;
-const R = (a,b) => a + Math.random()*(b-a);
-function fit() {
-  const dpr = Math.min(devicePixelRatio||1, 2);
-  cv.width = innerWidth*dpr; cv.height = innerHeight*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
-  W = innerWidth; H = innerHeight; puffs = [];
-  for (let i=0;i<7;i++) puffs.push({x:Math.random()*W, y:H*R(.08,.5),  rx:R(240,460), ry:R(70,130),  a:R(.03,.07), v:R(.10,.28), ph:Math.random()*6.28, ps:R(.002,.005)});
-  for (let i=0;i<6;i++) puffs.push({x:Math.random()*W, y:H*R(.62,.98), rx:R(320,600), ry:R(120,200), a:R(.06,.13), v:R(.18,.42), ph:Math.random()*6.28, ps:R(.002,.006)});
+// ---------- live flowing WebGL gradient (subtle, slowly evolving) ----------
+const cv = document.getElementById("gl");
+const gl = cv.getContext("webgl");
+if (!gl) {
+  cv.style.background = "radial-gradient(120% 90% at 50% 30%, #16213a, #070b16)";   // fallback
+} else {
+  const VS = `attribute vec2 p; void main(){ gl_Position=vec4(p,0.0,1.0); }`;
+  const FS = `
+  precision highp float;
+  uniform vec2 u_res; uniform float u_time;
+  float hash(vec2 p){ p=fract(p*vec2(123.34,345.45)); p+=dot(p,p+34.345); return fract(p.x*p.y); }
+  float noise(vec2 p){ vec2 i=floor(p),f=fract(p); f=f*f*(3.0-2.0*f);
+    float a=hash(i),b=hash(i+vec2(1.0,0.0)),c=hash(i+vec2(0.0,1.0)),d=hash(i+vec2(1.0,1.0));
+    return mix(mix(a,b,f.x),mix(c,d,f.x),f.y); }
+  float fbm(vec2 p){ float s=0.0,a=0.5; for(int i=0;i<6;i++){ s+=a*noise(p); p*=2.0; a*=0.5; } return s; }
+  void main(){
+    vec2 uv=gl_FragCoord.xy/u_res.xy;
+    vec2 p=uv*1.6; p.x*=u_res.x/u_res.y;
+    float t=u_time*0.025;                                   // slow, calm flow
+    vec2 q=vec2(fbm(p+vec2(0.0,t)), fbm(p+vec2(5.2,1.3)-vec2(t*0.6,0.0)));
+    vec2 r=vec2(fbm(p+2.4*q+vec2(1.7,9.2)+t*0.3), fbm(p+2.4*q+vec2(8.3,2.8)-t*0.2));
+    float f=fbm(p+3.0*r);
+    float m=clamp(f*1.05+0.08*sin(t+f*3.0),0.0,1.0);
+    float mood=0.5+0.5*sin(u_time*0.018);                   // evolves over ~6 min
+    vec3 A1=vec3(0.03,0.05,0.12),A2=vec3(0.07,0.24,0.31),A3=vec3(0.17,0.15,0.36),A4=vec3(0.33,0.19,0.33);
+    vec3 B1=vec3(0.05,0.06,0.10),B2=vec3(0.09,0.25,0.27),B3=vec3(0.24,0.17,0.30),B4=vec3(0.34,0.24,0.20);
+    vec3 c1=mix(A1,B1,mood),c2=mix(A2,B2,mood),c3=mix(A3,B3,mood),c4=mix(A4,B4,mood);
+    vec3 col=mix(c1,c2,smoothstep(0.0,0.45,m));
+    col=mix(col,c3,smoothstep(0.40,0.72,m));
+    col=mix(col,c4,smoothstep(0.68,1.0,m));
+    float v=smoothstep(1.25,0.35,length(uv-0.5));
+    col*=0.72+0.28*v;                                       // subtle, dark enough for text
+    gl_FragColor=vec4(col,1.0);
+  }`;
+  const sh=(ty,s)=>{ const o=gl.createShader(ty); gl.shaderSource(o,s); gl.compileShader(o);
+    if(!gl.getShaderParameter(o,gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(o)); return o; };
+  const prog=gl.createProgram();
+  gl.attachShader(prog,sh(gl.VERTEX_SHADER,VS)); gl.attachShader(prog,sh(gl.FRAGMENT_SHADER,FS));
+  gl.linkProgram(prog); gl.useProgram(prog);
+  const vb=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,vb);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+  const al=gl.getAttribLocation(prog,"p"); gl.enableVertexAttribArray(al); gl.vertexAttribPointer(al,2,gl.FLOAT,false,0,0);
+  const uRes=gl.getUniformLocation(prog,"u_res"), uTime=gl.getUniformLocation(prog,"u_time");
+  const glfit=()=>{ const dpr=Math.min(devicePixelRatio||1,2); cv.width=innerWidth*dpr; cv.height=innerHeight*dpr; gl.viewport(0,0,cv.width,cv.height); };
+  glfit(); addEventListener("resize",glfit);
+  const t0=performance.now();
+  (function draw(){ gl.uniform2f(uRes,cv.width,cv.height); gl.uniform1f(uTime,(performance.now()-t0)/1000);
+    gl.drawArrays(gl.TRIANGLE_STRIP,0,4); requestAnimationFrame(draw); })();
 }
-fit(); addEventListener("resize", fit);
-(function loop(){ ctx.clearRect(0,0,W,H);
-  for (const p of puffs) { p.x += p.v; p.ph += p.ps; if (p.x - p.rx > W) p.x = -p.rx;
-    const y = p.y + Math.sin(p.ph)*10, a = p.a*(.8 + .2*Math.sin(p.ph*1.3));
-    const g = ctx.createRadialGradient(p.x,y,0,p.x,y,p.rx);
-    g.addColorStop(0,`rgba(226,234,231,${a})`); g.addColorStop(.6,`rgba(220,230,228,${a*.5})`); g.addColorStop(1,"rgba(220,230,228,0)");
-    ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(p.x,y,p.rx,p.ry,0,0,7); ctx.fill(); }
-  requestAnimationFrame(loop); })();
 </script>
 </body>
 </html>
