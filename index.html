@@ -75,8 +75,15 @@
   .task .txt { flex: 1; font-size: 20px; font-weight: 500; }
   .task .date { font-size: 12px; font-weight: 700; color: #bfeede; font-variant-numeric: tabular-nums; white-space: nowrap;
     padding: 4px 11px; border-radius: 999px; background: rgba(143,230,194,.14); border: 1px solid rgba(143,230,194,.35); }
-  .task select { flex: none; padding: 6px 10px; font: inherit; font-size: 14px; font-weight: 600; border-radius: 999px;
-    color: #062018; background: #8fe6c2; border: none; cursor: pointer; }
+  .task select { flex: none; padding: 6px 10px; font: inherit; font-size: 14px; font-weight: 700; border-radius: 999px;
+    background: rgba(6,14,11,.6); border: 1px solid currentColor; cursor: pointer; }
+  .task select[data-s=yet]   { color: #ff6b6b; }
+  .task select[data-s=doing] { color: #ffd166; }
+  .task select[data-s=done]  { color: #6ee7a8; }
+  .task option { background: #10161c; }   /* the popup list is OS-drawn; only bg+color are honoured */
+  .task option[value=yet]   { color: #ff6b6b; }
+  .task option[value=doing] { color: #ffd166; }
+  .task option[value=done]  { color: #6ee7a8; }
   .empty { color: #a7c4bc; font-size: 15px; padding: 8px 2px; }
   .task.leaving { animation: pop .28s ease forwards; }
   @keyframes pop { to { transform: scale(.82); opacity: 0; } }
@@ -555,7 +562,8 @@ function row(t) {
   if (t.long) {
     const sel = document.createElement("select");
     STATUSES.forEach(([v, label]) => sel.add(new Option(label, v, false, v === (t.status || "yet"))));
-    sel.onchange = () => { t.status = sel.value; save(tasks); };
+    sel.dataset.s = t.status || "yet";
+    sel.onchange = () => { t.status = sel.dataset.s = sel.value; save(tasks); };
     li.append(sel);
   } else if (tab === "pending" || tab === "tomorrow") {
     const d = document.createElement("span");
