@@ -6,74 +6,128 @@
 <title>Today</title>
 <style>
   :root {
-    --ink: #0f2740;
-    --muted: #5b7891;
-    --line: rgba(15,39,64,.12);
-    --accent: #2f9bd8;
-    --card: rgba(255,255,255,.72);
+    --bg1: #0a0a1f;
+    --bg2: #17123a;
+    --bg3: #2a1150;
+    --ink: #eaf2ff;
+    --muted: #93a7c9;
+    --accent: #38e1ff;
+    --accent2: #b46bff;
+    --card: rgba(20,26,54,.55);
+    --line: rgba(120,180,255,.28);
+    --glow: 0 0 0 1px var(--line), 0 8px 30px rgba(0,0,0,.45), 0 0 22px rgba(56,225,255,.18);
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
   body {
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
     color: var(--ink);
-    background: linear-gradient(180deg, #d7f0fb 0%, #eaf7fd 40%, #f6fbfe 100%);
+    background:
+      radial-gradient(1200px 700px at 15% -10%, rgba(180,107,255,.35), transparent 60%),
+      radial-gradient(1000px 600px at 100% 0%, rgba(56,225,255,.22), transparent 55%),
+      linear-gradient(160deg, var(--bg1) 0%, var(--bg2) 45%, var(--bg3) 100%);
+    background-attachment: fixed;
     overflow-x: hidden;
   }
   #bubbles { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
   main {
     position: relative; z-index: 1;
-    max-width: 640px; margin: 0 auto; padding: 6vh 24px 12vh;
+    padding: 7vh 2in 14vh;              /* 2-inch gutter on both sides */
   }
+  @media (max-width: 900px) { main { padding: 6vh 22px 14vh; } }
+
   h1 {
-    font-size: clamp(38px, 8vw, 76px);
-    line-height: 1.02;
-    font-weight: 800;
-    letter-spacing: -.02em;
-    margin: 0 0 28px;
+    font-size: clamp(40px, 7vw, 92px);
+    line-height: .98; font-weight: 800; letter-spacing: -.02em;
+    margin: 0 0 22px;
+    background: linear-gradient(90deg, #fff 0%, var(--accent) 55%, var(--accent2) 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 0 40px rgba(56,225,255,.15);
   }
-  form { display: flex; gap: 10px; margin-bottom: 8px; }
+
+  .tabs { display: flex; gap: 10px; margin-bottom: 22px; }
+  .tab {
+    padding: 10px 20px; font-size: 15px; font-weight: 700; letter-spacing: .02em;
+    border-radius: 999px; cursor: pointer; color: var(--muted);
+    background: var(--card); backdrop-filter: blur(8px);
+    border: 1px solid var(--line);
+  }
+  .tab.on {
+    color: #061018;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-color: transparent;
+    box-shadow: 0 0 22px rgba(56,225,255,.5), 0 0 22px rgba(180,107,255,.35);
+  }
+  .tab .badge {
+    display: inline-block; min-width: 20px; margin-left: 8px; padding: 0 6px;
+    font-size: 12px; line-height: 18px; text-align: center; border-radius: 999px;
+    background: rgba(255,255,255,.18);
+  }
+  .tab.on .badge { background: rgba(0,0,0,.22); }
+
+  form { display: flex; gap: 12px; margin-bottom: 6px; }
   input[type=text] {
-    flex: 1; padding: 14px 16px; font-size: 17px;
-    border: 1px solid var(--line); border-radius: 12px;
-    background: var(--card); backdrop-filter: blur(6px); color: var(--ink);
+    flex: 1; padding: 16px 18px; font-size: 18px; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 14px;
+    background: var(--card); backdrop-filter: blur(8px);
+    box-shadow: var(--glow);
   }
-  input[type=text]:focus { outline: 2px solid var(--accent); border-color: transparent; }
+  input[type=text]::placeholder { color: var(--muted); }
+  input[type=text]:focus { outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent), 0 0 26px rgba(56,225,255,.35); }
   button.add {
-    padding: 0 20px; font-size: 22px; font-weight: 700;
-    border: none; border-radius: 12px; background: var(--accent); color: #fff; cursor: pointer;
+    padding: 0 24px; font-size: 26px; font-weight: 800; cursor: pointer;
+    border: none; border-radius: 14px; color: #061018;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    box-shadow: 0 0 26px rgba(56,225,255,.5);
   }
-  ul { list-style: none; margin: 14px 0 0; padding: 0; }
+
+  ul { list-style: none; margin: 18px 0 0; padding: 0; }
   li {
-    display: flex; align-items: center; gap: 14px;
-    padding: 13px 16px; margin-bottom: 8px;
-    background: var(--card); backdrop-filter: blur(6px);
-    border: 1px solid var(--line); border-radius: 12px;
+    display: flex; align-items: center; gap: 16px;
+    padding: 16px 18px; margin-bottom: 12px;
+    background: var(--card); backdrop-filter: blur(10px);
+    border: 1px solid var(--line); border-radius: 16px;
+    box-shadow: var(--glow);
+    transition: transform .12s ease, box-shadow .12s ease;
   }
-  li input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--accent); cursor: pointer; flex: none; }
-  li .task { flex: 1; font-size: 17px; }
-  li .date { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  h2 {
-    font-size: 14px; text-transform: uppercase; letter-spacing: .12em;
-    color: var(--muted); margin: 40px 0 4px;
+  li:hover { transform: translateY(-2px);
+    box-shadow: 0 0 0 1px var(--accent), 0 12px 34px rgba(0,0,0,.5), 0 0 26px rgba(56,225,255,.3); }
+  li input[type=checkbox] { width: 24px; height: 24px; accent-color: var(--accent); cursor: pointer; flex: none; }
+  li .task { flex: 1; font-size: 18px; }
+  li .date {
+    font-size: 13px; font-weight: 700; color: var(--accent2);
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+    padding: 4px 12px; border-radius: 999px;
+    background: rgba(180,107,255,.14); border: 1px solid rgba(180,107,255,.35);
   }
-  .empty { color: var(--muted); font-size: 15px; padding: 6px 2px; }
+  .empty { color: var(--muted); font-size: 16px; padding: 10px 4px; }
   li.leaving { animation: pop .28s ease forwards; }
-  @keyframes pop { to { transform: scale(.85); opacity: 0; } }
+  @keyframes pop { to { transform: scale(.82); opacity: 0; } }
+  [hidden] { display: none !important; }
 </style>
 </head>
 <body>
 <canvas id="bubbles"></canvas>
 <main>
   <h1 id="today"></h1>
-  <form id="add">
-    <input type="text" id="task" placeholder="Enter a task…" autocomplete="off" required>
-    <button class="add" type="submit">+</button>
-  </form>
-  <ul id="list"></ul>
 
-  <h2>Pending</h2>
-  <ul id="pending"></ul>
+  <div class="tabs">
+    <div class="tab on" data-tab="today">Today</div>
+    <div class="tab" data-tab="pending">Pending<span class="badge" id="pcount">0</span></div>
+  </div>
+
+  <section id="view-today">
+    <form id="add">
+      <input type="text" id="task" placeholder="Enter a task…" autocomplete="off" required>
+      <button class="add" type="submit">+</button>
+    </form>
+    <ul id="list"></ul>
+  </section>
+
+  <section id="view-pending" hidden>
+    <ul id="pending"></ul>
+  </section>
 </main>
 
 <script>
@@ -82,12 +136,9 @@ const todayStr = () => new Date().toISOString().slice(0, 10);      // YYYY-MM-DD
 const load = () => JSON.parse(localStorage.getItem(KEY) || "[]");
 const save = t => localStorage.setItem(KEY, JSON.stringify(t));
 
-// Pretty date: "March 1, 1993"
 document.getElementById("today").textContent =
   new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
-// Prune: completed tasks are never persisted, so nothing to prune there.
-// Tasks are just {text, date}. date < today => pending.
 let tasks = load();
 
 function render() {
@@ -102,7 +153,9 @@ function render() {
   todays.forEach(t => list.appendChild(row(t, false)));
   olds.forEach(t => pending.appendChild(row(t, true)));
 
+  if (!todays.length) list.innerHTML = '<div class="empty">Nothing yet. Add your first task above.</div>';
   if (!olds.length) pending.innerHTML = '<div class="empty">Nothing pending. Clean slate.</div>';
+  document.getElementById("pcount").textContent = olds.length;
 }
 
 function row(t, showDate) {
@@ -147,9 +200,19 @@ document.getElementById("add").onsubmit = e => {
   render();
 };
 
+// Tabs
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === tab));
+    const t = tab.dataset.tab;
+    document.getElementById("view-today").hidden = t !== "today";
+    document.getElementById("view-pending").hidden = t !== "pending";
+  };
+});
+
 render();
 
-// ---- Bubbles that rise and pop at the top ----
+// ---- Bubbles: mixed small + big, rise and pop at the top ----
 const cv = document.getElementById("bubbles");
 const ctx = cv.getContext("2d");
 let W, H, bubbles = [];
@@ -157,41 +220,43 @@ function resize() { W = cv.width = innerWidth; H = cv.height = innerHeight; }
 resize(); addEventListener("resize", resize);
 
 function spawn() {
-  const r = 6 + Math.random() * 22;
-  return { x: Math.random() * W, y: H + r, r, v: .4 + Math.random() * 1.1,
+  // half small, half big
+  const big = Math.random() < .45;
+  const r = big ? 26 + Math.random() * 44 : 4 + Math.random() * 16;
+  return { x: Math.random() * W, y: H + r, r, v: (big ? .25 : .5) + Math.random() * .9,
            wob: Math.random() * Math.PI * 2, pop: 0 };
 }
-for (let i = 0; i < 26; i++) { const b = spawn(); b.y = Math.random() * H; bubbles.push(b); }
+for (let i = 0; i < 30; i++) { const b = spawn(); b.y = Math.random() * H; bubbles.push(b); }
 
 function tick() {
   ctx.clearRect(0, 0, W, H);
   for (let i = 0; i < bubbles.length; i++) {
     let b = bubbles[i];
-    if (b.pop > 0) {                        // popping animation near the top
-      b.pop += .08;
+    if (b.pop > 0) {
+      b.pop += .07;
       drawPop(b);
       if (b.pop > 1) bubbles[i] = spawn();
       continue;
     }
     b.y -= b.v; b.wob += .03;
     b.x += Math.sin(b.wob) * .5;
-    if (b.y - b.r < 40) b.pop = .01;        // reached the top => pop
+    if (b.y - b.r < 46) b.pop = .01;      // reached the top => pop
     drawBubble(b);
   }
   requestAnimationFrame(tick);
 }
 function drawBubble(b) {
   const g = ctx.createRadialGradient(b.x - b.r/3, b.y - b.r/3, 1, b.x, b.y, b.r);
-  g.addColorStop(0, "rgba(255,255,255,.9)");
-  g.addColorStop(.5, "rgba(120,200,240,.35)");
-  g.addColorStop(1, "rgba(80,170,220,.12)");
+  g.addColorStop(0, "rgba(255,255,255,.85)");
+  g.addColorStop(.4, "rgba(120,220,255,.28)");
+  g.addColorStop(1, "rgba(150,110,255,.10)");
   ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fillStyle = g; ctx.fill();
-  ctx.strokeStyle = "rgba(255,255,255,.6)"; ctx.lineWidth = 1; ctx.stroke();
+  ctx.strokeStyle = "rgba(180,230,255,.45)"; ctx.lineWidth = 1; ctx.stroke();
 }
-function drawPop(b) {                        // little ring burst
+function drawPop(b) {
   const R = b.r * (1 + b.pop * 1.4);
   ctx.beginPath(); ctx.arc(b.x, b.y, R, 0, 7);
-  ctx.strokeStyle = `rgba(120,200,240,${(1 - b.pop) * .7})`;
+  ctx.strokeStyle = `rgba(120,220,255,${(1 - b.pop) * .6})`;
   ctx.lineWidth = 2; ctx.stroke();
 }
 tick();
