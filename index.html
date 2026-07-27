@@ -12,16 +12,16 @@
   @property --ang { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
   * { box-sizing: border-box; }
   html, body { margin: 0; min-height: 100%; }
-  body { font-family: "Space Grotesk", system-ui, sans-serif; color: #f3f7f6; background: #05060d; overflow-x: hidden; }
+  body { font-family: "Space Grotesk", system-ui, sans-serif; color: #f3f7f6; background: #111634; overflow-x: hidden; }
 
-  /* animated gradient mesh — slow-drifting purple/teal blobs on near-black */
+  /* animated gradient mesh — slow-drifting indigo/teal blobs on deep indigo (not black) */
   .bg-mesh { position: fixed; inset: 0; z-index: 0; pointer-events: none;
     background:
-      radial-gradient(60% 60% at 20% 26%, rgba(76,29,149,.55), transparent 62%),
-      radial-gradient(55% 55% at 82% 24%, rgba(6,78,59,.5), transparent 62%),
-      radial-gradient(60% 60% at 74% 82%, rgba(49,10,101,.5), transparent 62%),
-      radial-gradient(52% 52% at 22% 84%, rgba(15,118,110,.42), transparent 62%),
-      #05060d;
+      radial-gradient(60% 60% at 20% 26%, rgba(88,74,190,.5), transparent 62%),
+      radial-gradient(55% 55% at 82% 24%, rgba(28,120,132,.42), transparent 62%),
+      radial-gradient(60% 60% at 74% 82%, rgba(74,44,150,.45), transparent 62%),
+      radial-gradient(52% 52% at 22% 84%, rgba(30,96,124,.38), transparent 62%),
+      #111634;
     background-size: 180% 180%;
     filter: blur(30px) saturate(1.05);
     animation: meshmove 28s ease-in-out infinite alternate; }
@@ -78,10 +78,10 @@
     color: #062018; background: linear-gradient(90deg,#9df0ff,#8fe6c2); box-shadow: 0 0 22px rgba(140,240,210,.4); }
 
   ul { list-style: none; margin: 4px 0 0; padding: 0; width: 100%; }
-  .task { display: flex; align-items: center; gap: 14px; text-align: left; padding: 14px 16px; margin-bottom: 10px;
-    border-radius: 14px; border: 1px solid rgba(255,255,255,.14); background: rgba(6,14,11,.5); backdrop-filter: blur(8px);
-    cursor: pointer; transition: transform .12s ease; }
-  .task:hover { transform: translateY(-1px); }
+  .task { display: flex; align-items: center; gap: 16px; text-align: left; padding: 20px 22px; margin-bottom: 12px;
+    border-radius: 16px; border: 2px solid rgba(160,200,255,.30); background: rgba(14,18,40,.62); backdrop-filter: blur(8px);
+    box-shadow: 0 6px 22px rgba(0,0,0,.4); cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; }
+  .task:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,0,0,.5); border-color: rgba(160,200,255,.5); }
   .task.active { border-color: transparent; }
   .task input[type=checkbox] { width: 24px; height: 24px; accent-color: #8fe6c2; cursor: pointer; flex: none; }
   .task .txt { flex: 1; font-size: 20px; font-weight: 500; }
@@ -592,53 +592,112 @@ document.querySelectorAll(".tab").forEach(tab => tab.onclick = () => {
 
 render();
 
-// ---------- drifting glowing fireflies over the animated mesh ----------
+// ---------- full-width scrolling todo/goals code (syntax-highlighted) ----------
 const cv = document.getElementById("fx"), x = cv.getContext("2d");
-const COUNT = 120;
-// hues that glow on dark purple/teal: sky, violet, mint, gold, lilac
-const PALETTE = [[125,211,252],[167,139,250],[94,234,212],[253,224,138],[209,196,255]];
-const RND = (a,b) => a + Math.random()*(b-a);
-let W, H, flies, t = 0, paused = false;
+const CODE = `// build the day's plan
+export function planDay(tasks) {
+  const today = iso(new Date());
+  const pending = tasks.filter(t => t.date < today);
+  const active  = tasks.filter(t => t.date === today);
+  return { active, pending, count: active.length };
+}
+
+// roll unfinished tasks into pending
+function rollover(tasks, today) {
+  return tasks.map(t =>
+    t.date < today ? { ...t, pending: true } : t);
+}
+
+const addTask = (text) => {
+  if (!text.trim()) return;
+  tasks.push({ id: uid(), text, date: today() });
+  save(tasks);
+  render();
+};
+
+// completing a task deletes it forever
+const complete = (task) => {
+  tasks = tasks.filter(x => x.id !== task.id);
+  save(tasks);
+  render();
+};
+
+const quoteOfDay = (list) => {
+  const day = dayOfYear(new Date());
+  return list[day % list.length];
+};
+
+class Streak {
+  constructor() { this.days = 0; }
+  add()   { this.days += 1; return this; }
+  reset() { this.days = 0; }
+}
+
+for (let i = 0; i < goals.length; i++) {
+  if (goals[i].done) continue;
+  focus(goals[i]);
+}
+
+const remaining = goals.filter(g => !g.done).length;
+if (remaining === 0) celebrate("all done today");`.split("\n");
+
+const KW = /\b(export|function|const|let|var|return|async|await|try|catch|class|constructor|for|if|else|continue|new|import|from|of|filter|map|this)\b/;
+const COL = { kw:"#c39bff", str:"#8fe6c2", num:"#ffd36e", com:"#6d7fb0", punc:"#8ea6d6", def:"#bcd0f0" };
+function tokens(line) {
+  if (line.trim().startsWith("//")) return [[line,"com"]];
+  const out = []; const re = /(\"[^\"]*\"|'[^']*'|`[^`]*`)|(\/\/.*$)|(\b\d+\b)|([A-Za-z_$][\w$]*)|(\s+)|([^\w\s])/g; let m;
+  while ((m = re.exec(line))) {
+    if (m[1]) out.push([m[0],"str"]);
+    else if (m[2]) out.push([m[0],"com"]);
+    else if (m[3]) out.push([m[0],"num"]);
+    else if (m[4]) out.push([m[0], KW.test(m[4]) ? "kw" : "def"]);
+    else if (m[5]) out.push([m[0],"def"]);
+    else out.push([m[0],"punc"]);
+  }
+  return out;
+}
+const LINES = CODE.map(tokens);
+let W, H, lh = 28, fs = 17, colW = 560, paused = false, off = 0;
 function fxBuild() {
   const d = Math.min(devicePixelRatio||1, 2);
   cv.width = innerWidth*d; cv.height = innerHeight*d; x.setTransform(d,0,0,d,0,0);
   W = innerWidth; H = innerHeight;
-  flies = Array.from({length:COUNT}, () => ({
-    x: Math.random()*W, y: Math.random()*H, r: RND(1.5,3.9),
-    vx: RND(-0.15,0.15), vy: RND(-0.65,-0.15), ph: Math.random()*7, tw: RND(0.6,2.3),
-    c: PALETTE[(Math.random()*PALETTE.length)|0],
-  }));
 }
 fxBuild(); addEventListener("resize", fxBuild);
-document.addEventListener("visibilitychange", () => {                 // pause when tab hidden (battery)
+document.addEventListener("visibilitychange", () => {
   paused = document.hidden; if (!paused) requestAnimationFrame(fxDraw);
 });
+function drawColumn(colX, alpha, lineShift) {
+  const total = LINES.length*lh;
+  const y = -(off % total);
+  x.save();
+  x.beginPath(); x.rect(colX-10, 0, colW, H); x.clip();          // keep each column tidy
+  x.font = `600 ${fs}px "JetBrains Mono", ui-monospace, monospace`; x.textBaseline = "top";
+  for (let pass = 0; pass < Math.ceil(H/total)+2; pass++) {
+    for (let i = 0; i < LINES.length; i++) {
+      const ly = y + i*lh + pass*total;
+      if (ly < -lh || ly > H) continue;
+      const line = LINES[(i+lineShift) % LINES.length];
+      let cx = colX;
+      for (const [txt, kind] of line) {
+        x.globalAlpha = alpha*(kind === "com" ? .7 : 1);
+        x.fillStyle = COL[kind] || COL.def;
+        x.fillText(txt, cx, ly);
+        cx += x.measureText(txt).width;
+      }
+    }
+  }
+  x.restore(); x.globalAlpha = 1;
+}
 function fxDraw() {
   if (paused) return;
-  t += 0.035;
   x.clearRect(0,0,W,H);
-  for (const f of flies) {
-    f.x += f.vx; f.y += f.vy;
-    if (f.y < -6) { f.y = H+6; f.x = Math.random()*W; }
-    if (f.x < -6) f.x = W+6; if (f.x > W+6) f.x = -6;
-    const a = 0.4 + 0.55*Math.sin(t*f.tw + f.ph);
-    const [r,g,b] = f.c;
-    // colored glow halo
-    const grad = x.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r*4.2);
-    grad.addColorStop(0, `rgba(${r},${g},${b},${0.55*a})`);
-    grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
-    x.fillStyle = grad;
-    x.beginPath(); x.arc(f.x, f.y, f.r*4.2, 0, 7); x.fill();
-    // bright core with bloom
-    x.fillStyle = `rgba(255,255,255,${0.95*a})`;
-    x.shadowBlur = 16; x.shadowColor = `rgb(${r},${g},${b})`;
-    x.beginPath(); x.arc(f.x, f.y, f.r, 0, 7); x.fill();
-    x.shadowBlur = 0;
-  }
+  const n = Math.ceil(W/colW) + 1;                                // tile across the full width
+  for (let c = 0; c < n; c++) drawColumn(40 + c*colW, 0.5, c*13); // each column offset so it's not a copy
+  off += 0.4;
   requestAnimationFrame(fxDraw);
 }
-if (matchMedia("(prefers-reduced-motion: reduce)").matches) fxDraw();  // single frame
-else fxDraw();
+fxDraw();
 </script>
 </body>
 </html>
