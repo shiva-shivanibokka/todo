@@ -158,7 +158,7 @@
       x.font = '10px ui-monospace, Menlo, Consolas, monospace';
       x.textBaseline = 'middle';
       x.fillStyle = '#7d8bab';
-      x.fillText('rain.js', 74, 13);
+      x.fillText('today.js', 74, 13);
 
       var padTop = 34, lh = 14.2, gutter = 40;
       x.font = '12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
