@@ -12,29 +12,16 @@
   @property --ang { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
   * { box-sizing: border-box; }
   html, body { margin: 0; min-height: 100%; }
-  body { font-family: "Space Grotesk", system-ui, sans-serif; color: #f3f7f6; background: #111634; overflow-x: hidden; }
+  body { font-family: "Space Grotesk", system-ui, sans-serif; color: #f3f7f6; background: #0b0910; overflow-x: hidden; }
 
-  /* animated gradient mesh — slow-drifting indigo/teal blobs on deep indigo (not black) */
-  .bg-mesh { position: fixed; inset: 0; z-index: 0; pointer-events: none;
-    background:
-      radial-gradient(60% 60% at 20% 26%, rgba(88,74,190,.5), transparent 62%),
-      radial-gradient(55% 55% at 82% 24%, rgba(28,120,132,.42), transparent 62%),
-      radial-gradient(60% 60% at 74% 82%, rgba(74,44,150,.45), transparent 62%),
-      radial-gradient(52% 52% at 22% 84%, rgba(30,96,124,.38), transparent 62%),
-      #111634;
-    background-size: 180% 180%;
-    filter: blur(30px) saturate(1.05);
-    animation: meshmove 28s ease-in-out infinite alternate; }
-  @keyframes meshmove {
-    0%   { background-position: 0% 0%, 100% 0%, 100% 100%, 0% 100%; }
-    100% { background-position: 100% 100%, 0% 100%, 0% 0%, 100% 0%; }
-  }
-  #fx { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
-  @media (prefers-reduced-motion: reduce) { .bg-mesh { animation: none; } }
+  /* animated lofi coding-room scene (canvas) */
+  #bg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; pointer-events: none; }
 
-  .app { position: relative; z-index: 3; margin: 0 auto; padding: 6vh 2in 14vh;   /* 2-inch gutter each side */
-    display: flex; flex-direction: column; align-items: center; gap: 22px; text-align: center; }
-  @media (max-width: 900px) { .app { padding: 6vh 20px 12vh; } }
+  /* content lives in a left column so the scene (girl + monitor + cat) shows on the right */
+  .app { position: relative; z-index: 2; max-width: 600px; margin: 0; min-height: 100vh;
+    padding: 7vh clamp(24px, 4vw, 64px) 10vh;
+    display: flex; flex-direction: column; align-items: stretch; gap: 20px; text-align: left; }
+  @media (max-width: 820px) { .app { max-width: none; padding: 6vh 20px 12vh; } }
 
   /* electric glowing border, shared by date/quote boxes and the active task */
   .glow, .task.active { position: relative; }
@@ -53,7 +40,7 @@
   .glow { border-radius: 18px; }
   .datebox { width: 100%; padding: 20px 34px; background: rgba(6,14,11,.32); backdrop-filter: blur(4px); }
   .date { font-family: "Sora", sans-serif; font-weight: 800; letter-spacing: -.01em; color: #fff; white-space: nowrap;
-    font-size: clamp(40px, 6.6vw, 88px); line-height: 1; margin: 0; text-shadow: 0 3px 22px rgba(0,0,0,.85); }
+    font-size: clamp(32px, 4.4vw, 56px); line-height: 1; margin: 0; text-shadow: 0 3px 22px rgba(0,0,0,.85); }
   .quotebox { width: 100%; padding: 22px 30px; background: rgba(6,14,11,.42); backdrop-filter: blur(6px); }
   .quote { font-size: clamp(16px, 1.7vw, 21px); line-height: 1.4; font-style: italic; color: #eef6f2; }
   .quote b { font-style: normal; font-weight: 600; font-size: .9em; color: #b9dcd2; white-space: nowrap; }
@@ -94,8 +81,7 @@
 </style>
 </head>
 <body>
-<div class="bg-mesh"></div>
-<canvas id="fx"></canvas>
+<canvas id="bg"></canvas>
 
 <div class="app">
   <div class="glow datebox"><h1 class="date" id="today"></h1></div>
@@ -106,7 +92,7 @@
     <div class="tab" data-tab="pending">Pending<span class="badge" id="pcount">0</span></div>
   </div>
 
-  <section id="view-today" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:14px">
+  <section id="view-today" style="width:100%;display:flex;flex-direction:column;align-items:stretch;gap:14px">
     <form id="add">
       <input id="task" type="text" placeholder="Add a task for today…" autocomplete="off" required>
       <button class="add" type="submit" aria-label="Add task">+</button>
@@ -114,7 +100,7 @@
     <ul id="list"></ul>
   </section>
 
-  <section id="view-pending" hidden style="width:100%;display:flex;justify-content:center">
+  <section id="view-pending" hidden style="width:100%;display:flex;justify-content:flex-start">
     <ul id="pending"></ul>
   </section>
 </div>
@@ -592,112 +578,30 @@ document.querySelectorAll(".tab").forEach(tab => tab.onclick = () => {
 
 render();
 
-// ---------- full-width scrolling todo/goals code (syntax-highlighted) ----------
-const cv = document.getElementById("fx"), x = cv.getContext("2d");
-const CODE = `// build the day's plan
-export function planDay(tasks) {
-  const today = iso(new Date());
-  const pending = tasks.filter(t => t.date < today);
-  const active  = tasks.filter(t => t.date === today);
-  return { active, pending, count: active.length };
-}
+</script>
 
-// roll unfinished tasks into pending
-function rollover(tasks, today) {
-  return tasks.map(t =>
-    t.date < today ? { ...t, pending: true } : t);
-}
-
-const addTask = (text) => {
-  if (!text.trim()) return;
-  tasks.push({ id: uid(), text, date: today() });
-  save(tasks);
-  render();
-};
-
-// completing a task deletes it forever
-const complete = (task) => {
-  tasks = tasks.filter(x => x.id !== task.id);
-  save(tasks);
-  render();
-};
-
-const quoteOfDay = (list) => {
-  const day = dayOfYear(new Date());
-  return list[day % list.length];
-};
-
-class Streak {
-  constructor() { this.days = 0; }
-  add()   { this.days += 1; return this; }
-  reset() { this.days = 0; }
-}
-
-for (let i = 0; i < goals.length; i++) {
-  if (goals[i].done) continue;
-  focus(goals[i]);
-}
-
-const remaining = goals.filter(g => !g.done).length;
-if (remaining === 0) celebrate("all done today");`.split("\n");
-
-const KW = /\b(export|function|const|let|var|return|async|await|try|catch|class|constructor|for|if|else|continue|new|import|from|of|filter|map|this)\b/;
-const COL = { kw:"#c39bff", str:"#8fe6c2", num:"#ffd36e", com:"#6d7fb0", punc:"#8ea6d6", def:"#bcd0f0" };
-function tokens(line) {
-  if (line.trim().startsWith("//")) return [[line,"com"]];
-  const out = []; const re = /(\"[^\"]*\"|'[^']*'|`[^`]*`)|(\/\/.*$)|(\b\d+\b)|([A-Za-z_$][\w$]*)|(\s+)|([^\w\s])/g; let m;
-  while ((m = re.exec(line))) {
-    if (m[1]) out.push([m[0],"str"]);
-    else if (m[2]) out.push([m[0],"com"]);
-    else if (m[3]) out.push([m[0],"num"]);
-    else if (m[4]) out.push([m[0], KW.test(m[4]) ? "kw" : "def"]);
-    else if (m[5]) out.push([m[0],"def"]);
-    else out.push([m[0],"punc"]);
+<!-- animated lofi coding-room background -->
+<script src="scene.js"></script>
+<script>
+  // left scrim suits the left content column; put the app's own logic on the monitor
+  if (window.AnimeBG) {
+    AnimeBG.setScrim(0.55);
+    AnimeBG.setCode([
+      [['c','// today.js — plan the day']],
+      [['k','export function'],['f',' planDay'],['d','('],['v','tasks'],['d',') {']],
+      [['d','  '],['k','const'],['d',' '],['v','today'],['d',' = '],['f','iso'],['d','('],['k','new'],['f',' Date'],['d','())']],
+      [['d','  '],['k','const'],['d',' '],['v','active'],['d',' = '],['v','tasks'],['d','.'],['f','filter'],['d','('],['v','t'],['d',' => '],['v','t'],['d','.'],['v','date'],['d',' === '],['v','today'],['d',')']],
+      [['d','  '],['k','const'],['d',' '],['v','pending'],['d',' = '],['v','tasks'],['d','.'],['f','filter'],['d','('],['v','t'],['d',' => '],['v','t'],['d','.'],['v','date'],['d',' < '],['v','today'],['d',')']],
+      [['d','  '],['k','return'],['d',' { '],['v','active'],['d',', '],['v','pending'],['d',' }']],
+      [['d','}']],
+      [],
+      [['c','// checking a task deletes it forever']],
+      [['k','const'],['f',' complete'],['d',' = ('],['v','task'],['d',') => {']],
+      [['d','  '],['v','tasks'],['d',' = '],['v','tasks'],['d','.'],['f','filter'],['d','('],['v','x'],['d',' => '],['v','x'],['d','.'],['v','id'],['d',' !== '],['v','task'],['d','.'],['v','id'],['d',')']],
+      [['d','  '],['f','save'],['d','('],['v','tasks'],['d',')'],['d','; '],['f','render'],['d','()']],
+      [['d','}']]
+    ]);
   }
-  return out;
-}
-const LINES = CODE.map(tokens);
-let W, H, lh = 28, fs = 17, colW = 560, paused = false, off = 0;
-function fxBuild() {
-  const d = Math.min(devicePixelRatio||1, 2);
-  cv.width = innerWidth*d; cv.height = innerHeight*d; x.setTransform(d,0,0,d,0,0);
-  W = innerWidth; H = innerHeight;
-}
-fxBuild(); addEventListener("resize", fxBuild);
-document.addEventListener("visibilitychange", () => {
-  paused = document.hidden; if (!paused) requestAnimationFrame(fxDraw);
-});
-function drawColumn(colX, alpha, lineShift) {
-  const total = LINES.length*lh;
-  const y = -(off % total);
-  x.save();
-  x.beginPath(); x.rect(colX-10, 0, colW, H); x.clip();          // keep each column tidy
-  x.font = `600 ${fs}px "JetBrains Mono", ui-monospace, monospace`; x.textBaseline = "top";
-  for (let pass = 0; pass < Math.ceil(H/total)+2; pass++) {
-    for (let i = 0; i < LINES.length; i++) {
-      const ly = y + i*lh + pass*total;
-      if (ly < -lh || ly > H) continue;
-      const line = LINES[(i+lineShift) % LINES.length];
-      let cx = colX;
-      for (const [txt, kind] of line) {
-        x.globalAlpha = alpha*(kind === "com" ? .7 : 1);
-        x.fillStyle = COL[kind] || COL.def;
-        x.fillText(txt, cx, ly);
-        cx += x.measureText(txt).width;
-      }
-    }
-  }
-  x.restore(); x.globalAlpha = 1;
-}
-function fxDraw() {
-  if (paused) return;
-  x.clearRect(0,0,W,H);
-  const n = Math.ceil(W/colW) + 1;                                // tile across the full width
-  for (let c = 0; c < n; c++) drawColumn(40 + c*colW, 0.5, c*13); // each column offset so it's not a copy
-  off += 0.4;
-  requestAnimationFrame(fxDraw);
-}
-fxDraw();
 </script>
 </body>
 </html>
