@@ -160,43 +160,52 @@
       x.fillStyle = '#7d8bab';
       x.fillText('today.js', 74, 13);
 
-      var padTop = 34, lh = 14.2, gutter = 40;
+      var padTop = 34, lh = 14.2, gutter = 40, bottomBar = 20;
       x.font = '12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
       var chw = x.measureText('0123456789').width / 10;
 
-      // current line highlight
+      // find the current typing line/col
       var remain = shown, li = 0, cl = 0, cc = 0;
       for (li = 0; li < CODE.length; li++) {
         if (remain <= CODE[li]._len) { cl = li; cc = Math.max(0, remain); break; }
         remain -= CODE[li]._len + 1;
       }
       if (li >= CODE.length) { cl = CODE.length - 1; cc = CODE[cl]._len; }
-      curLine = cl; curCol = cc;
 
-      x.fillStyle = 'rgba(130,170,255,0.055)';
-      x.fillRect(gutter - 6, padTop + cl * lh - lh * 0.5, w - gutter - 4, lh);
+      // auto-scroll so the current line stays in view
+      var visibleLines = Math.floor((h - padTop - bottomBar) / lh);
+      var maxOffset = Math.max(0, CODE.length - visibleLines);
+      var offset = clamp(cl - (visibleLines - 2), 0, maxOffset);
+      var clScreen = cl - offset;
 
-      // lines
+      // current line highlight
+      if (clScreen >= 0 && clScreen < visibleLines) {
+        x.fillStyle = 'rgba(130,170,255,0.055)';
+        x.fillRect(gutter - 6, padTop + clScreen * lh - lh * 0.5, w - gutter - 4, lh);
+      }
+
+      // lines (only the visible window)
       remain = shown;
       for (var i = 0; i < CODE.length; i++) {
-        var ty = padTop + i * lh;
+        var screen = i - offset;
         var take = clamp(remain, 0, CODE[i]._len);
-        // gutter number
-        x.fillStyle = (i === cl) ? 'rgba(160,190,240,0.55)' : 'rgba(110,130,175,0.28)';
-        x.font = '10px ui-monospace, Menlo, Consolas, monospace';
-        var ln = String(i + 1);
-        x.fillText(ln, gutter - 12 - ln.length * 5.6, ty);
-        x.font = '12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
-
-        var col = 0;
-        for (var j = 0; j < CODE[i].length; j++) {
-          var tok = CODE[i][j], txt = tok[1];
-          var vis = clamp(take - col, 0, txt.length);
-          if (vis > 0) {
-            x.fillStyle = COL[tok[0]] || COL.d;
-            x.fillText(txt.slice(0, vis), gutter + col * chw, ty);
+        if (screen >= 0 && screen < visibleLines) {
+          var ty = padTop + screen * lh;
+          x.fillStyle = (i === cl) ? 'rgba(160,190,240,0.55)' : 'rgba(110,130,175,0.28)';
+          x.font = '10px ui-monospace, Menlo, Consolas, monospace';
+          var ln = String(i + 1);
+          x.fillText(ln, gutter - 12 - ln.length * 5.6, ty);
+          x.font = '12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+          var col = 0;
+          for (var j = 0; j < CODE[i].length; j++) {
+            var tok = CODE[i][j], txt = tok[1];
+            var vis = clamp(take - col, 0, txt.length);
+            if (vis > 0) {
+              x.fillStyle = COL[tok[0]] || COL.d;
+              x.fillText(txt.slice(0, vis), gutter + col * chw, ty);
+            }
+            col += txt.length;
           }
-          col += txt.length;
         }
         remain -= CODE[i]._len + 1;
         if (remain < 0) remain = 0;
@@ -211,12 +220,14 @@
       x.fillStyle = '#98c379';
       x.beginPath(); x.arc(w - 16, h - 9, 3, 0, TAU); x.fill();
 
+      curLine = clScreen; curCol = cc;   // screen-relative for the caret
       codeCanvas._chw = chw; codeCanvas._lh = lh;
       codeCanvas._padTop = padTop; codeCanvas._gutter = gutter;
     }
 
     function drawMonitor(t) {
-      var LOOP = 46, CPS = 15;
+      var CPS = 22;                         // chars/sec
+      var LOOP = totalChars / CPS + 5;      // type the whole file, hold ~5s, then loop
       var phase = t % LOOP;
       var shown = Math.floor(clamp(phase * CPS, 0, totalChars));
       if (shown !== codeShown) { codeShown = shown; renderCode(shown); }

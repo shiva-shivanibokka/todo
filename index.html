@@ -587,23 +587,73 @@ render();
   // left scrim suits the left content column; put the app's own logic on the monitor
   if (window.AnimeBG) {
     AnimeBG.setScrim(0.55);
-    AnimeBG.setCode([
-      [['c','// today.js — plan the day']],
-      [['k','export function'],['f',' planDay'],['d','('],['v','tasks'],['d',') {']],
-      [['d','  '],['k','const'],['d',' '],['v','today'],['d',' = '],['f','iso'],['d','('],['k','new'],['f',' Date'],['d','())']],
-      [['d','  '],['k','const'],['d',' '],['v','active'],['d','  = '],['v','tasks'],['d','.'],['f','filter'],['d','('],['v','t'],['d',' => '],['v','t'],['d','.'],['v','date'],['d',' === '],['v','today'],['d',')']],
-      [['d','  '],['k','const'],['d',' '],['v','pending'],['d',' = '],['v','tasks'],['d','.'],['f','filter'],['d','('],['v','t'],['d',' => '],['v','t'],['d','.'],['v','date'],['d',' < '],['v','today'],['d',')']],
-      [['d','  '],['k','return'],['d',' { '],['v','active'],['d',', '],['v','pending'],['d',' }']],
-      [['d','}']],
-      [],
-      [['c','// checking a task deletes it forever']],
-      [['k','const'],['f',' complete'],['d',' = ('],['v','task'],['d',') => {']],
-      [['d','  '],['v','tasks'],['d',' = '],['v','tasks'],['d','.'],['f','filter'],['d','('],['v','x'],['d',' => '],['v','x'],['d','.'],['v','id'],['d',' !== '],['v','task'],['d','.'],['v','id'],['d',')']],
-      [['d','  '],['f','save'],['d','('],['v','tasks'],['d','); '],['f','render'],['d','()']],
-      [['d','}']],
-      [],
-      [['k','const'],['d',' '],['v','done'],['d',' = '],['v','goals'],['d','.'],['f','filter'],['d','('],['v','g'],['d',' => '],['v','g'],['d','.'],['v','done'],['d',').'],['v','length']]
-    ]);
+
+    // the full todo/goals source, tokenized to the scene's [type, text] format
+    var SRC = `// build the day's plan
+export function planDay(tasks) {
+  const today = iso(new Date());
+  const pending = tasks.filter(t => t.date < today);
+  const active  = tasks.filter(t => t.date === today);
+  return { active, pending, count: active.length };
+}
+
+// roll unfinished tasks into pending
+function rollover(tasks, today) {
+  return tasks.map(t =>
+    t.date < today ? { ...t, pending: true } : t);
+}
+
+const addTask = (text) => {
+  if (!text.trim()) return;
+  tasks.push({ id: uid(), text, date: today() });
+  save(tasks);
+  render();
+};
+
+// completing a task deletes it forever
+const complete = (task) => {
+  tasks = tasks.filter(x => x.id !== task.id);
+  save(tasks);
+  render();
+};
+
+const quoteOfDay = (list) => {
+  const day = dayOfYear(new Date());
+  return list[day % list.length];
+};
+
+class Streak {
+  constructor() { this.days = 0; }
+  add()   { this.days += 1; return this; }
+  reset() { this.days = 0; }
+}
+
+for (let i = 0; i < goals.length; i++) {
+  if (goals[i].done) continue;
+  focus(goals[i]);
+}
+
+const remaining = goals.filter(g => !g.done).length;
+if (remaining === 0) celebrate("all done today");`;
+
+    var CKW = /^(export|function|const|let|var|return|async|await|try|catch|class|constructor|for|if|else|continue|new|import|from|of|this)$/;
+    function tokenizeLine(line) {
+      if (line.trim().indexOf('//') === 0) return [['c', line]];
+      var out = [], re = /("[^"]*"|'[^']*'|`[^`]*`)|(\/\/.*$)|(\b\d+\b)|([A-Za-z_$][\w$]*)|(\s+)|([^\w\s])/g, m;
+      while ((m = re.exec(line))) {
+        if (m[1]) out.push(['s', m[0]]);
+        else if (m[2]) out.push(['c', m[0]]);
+        else if (m[3]) out.push(['n', m[0]]);
+        else if (m[4]) {
+          var kind = 'v';
+          if (CKW.test(m[4])) kind = 'k';
+          else if (/^\s*\(/.test(line.slice(re.lastIndex))) kind = 'f';
+          out.push([kind, m[4]]);
+        } else out.push(['d', m[0]]);
+      }
+      return out.length ? out : [['d', '']];
+    }
+    AnimeBG.setCode(SRC.split('\n').map(tokenizeLine));
   }
 </script>
 </body>
