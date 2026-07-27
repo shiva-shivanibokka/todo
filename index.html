@@ -4,142 +4,173 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Today</title>
+<!-- Forest photo: Unsplash (free license) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg1: #0a0a1f;
-    --bg2: #17123a;
-    --bg3: #2a1150;
-    --ink: #eaf2ff;
-    --muted: #93a7c9;
-    --accent: #38e1ff;
-    --accent2: #b46bff;
-    --card: rgba(20,26,54,.55);
-    --line: rgba(120,180,255,.28);
-    --glow: 0 0 0 1px var(--line), 0 8px 30px rgba(0,0,0,.45), 0 0 22px rgba(56,225,255,.18);
-  }
+  @property --ang { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
   * { box-sizing: border-box; }
-  html, body { height: 100%; margin: 0; }
-  body {
-    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-    color: var(--ink);
-    background:
-      radial-gradient(1200px 700px at 15% -10%, rgba(180,107,255,.35), transparent 60%),
-      radial-gradient(1000px 600px at 100% 0%, rgba(56,225,255,.22), transparent 55%),
-      linear-gradient(160deg, var(--bg1) 0%, var(--bg2) 45%, var(--bg3) 100%);
-    background-attachment: fixed;
-    overflow-x: hidden;
-  }
-  #bubbles { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
-  main {
-    position: relative; z-index: 1;
-    padding: 7vh 2in 14vh;              /* 2-inch gutter on both sides */
-  }
-  @media (max-width: 900px) { main { padding: 6vh 22px 14vh; } }
+  html, body { margin: 0; min-height: 100%; }
+  body { font-family: "Space Grotesk", system-ui, sans-serif; color: #f3f7f6; background: #0a140f; overflow-x: hidden; }
 
-  h1 {
-    font-size: clamp(40px, 7vw, 92px);
-    line-height: .98; font-weight: 800; letter-spacing: -.02em;
-    margin: 0 0 22px;
-    background: linear-gradient(90deg, #fff 0%, var(--accent) 55%, var(--accent2) 100%);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-    text-shadow: 0 0 40px rgba(56,225,255,.15);
-  }
+  #photo  { position: fixed; inset: 0; z-index: 0; background: url(forest.jpg) center/cover no-repeat; }
+  #scrim  { position: fixed; inset: 0; z-index: 1; pointer-events: none;
+    background: radial-gradient(120% 90% at 50% 30%, rgba(8,16,14,.15) 0%, rgba(8,16,14,.5) 55%, rgba(5,11,9,.8) 100%); }
+  #weather{ position: fixed; inset: 0; z-index: 2; pointer-events: none; }
 
-  .tabs { display: flex; gap: 10px; margin-bottom: 22px; }
-  .tab {
-    padding: 10px 20px; font-size: 15px; font-weight: 700; letter-spacing: .02em;
-    border-radius: 999px; cursor: pointer; color: var(--muted);
-    background: var(--card); backdrop-filter: blur(8px);
-    border: 1px solid var(--line);
-  }
-  .tab.on {
-    color: #061018;
-    background: linear-gradient(90deg, var(--accent), var(--accent2));
-    border-color: transparent;
-    box-shadow: 0 0 22px rgba(56,225,255,.5), 0 0 22px rgba(180,107,255,.35);
-  }
-  .tab .badge {
-    display: inline-block; min-width: 20px; margin-left: 8px; padding: 0 6px;
-    font-size: 12px; line-height: 18px; text-align: center; border-radius: 999px;
-    background: rgba(255,255,255,.18);
-  }
-  .tab.on .badge { background: rgba(0,0,0,.22); }
+  .app { position: relative; z-index: 3; max-width: 720px; margin: 0 auto; padding: 6vh 20px 14vh;
+    display: flex; flex-direction: column; align-items: center; gap: 22px; text-align: center; }
 
-  form { display: flex; gap: 12px; margin-bottom: 6px; }
-  input[type=text] {
-    flex: 1; padding: 16px 18px; font-size: 18px; color: var(--ink);
-    border: 1px solid var(--line); border-radius: 14px;
-    background: var(--card); backdrop-filter: blur(8px);
-    box-shadow: var(--glow);
+  /* electric glowing border, shared by date/quote boxes and the active task */
+  .glow, .task.active { position: relative; }
+  .glow > *, .task.active > * { position: relative; z-index: 2; }
+  .glow::before, .glow::after,
+  .task.active::before, .task.active::after {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 2px; z-index: 1;
+    background: conic-gradient(from var(--ang),
+      transparent 0deg, #9df0ff 55deg, #d6fff0 90deg, #8fe6c2 150deg, transparent 210deg, transparent 360deg);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude; animation: spin 6s linear infinite;
   }
-  input[type=text]::placeholder { color: var(--muted); }
-  input[type=text]:focus { outline: none; border-color: var(--accent);
-    box-shadow: 0 0 0 1px var(--accent), 0 0 26px rgba(56,225,255,.35); }
-  button.add {
-    padding: 0 24px; font-size: 26px; font-weight: 800; cursor: pointer;
-    border: none; border-radius: 14px; color: #061018;
-    background: linear-gradient(90deg, var(--accent), var(--accent2));
-    box-shadow: 0 0 26px rgba(56,225,255,.5);
-  }
+  .glow::after, .task.active::after { filter: blur(9px); opacity: .8; }
+  @keyframes spin { to { --ang: 360deg; } }
 
-  ul { list-style: none; margin: 18px 0 0; padding: 0; }
-  li {
-    display: flex; align-items: center; gap: 16px;
-    padding: 16px 18px; margin-bottom: 12px;
-    background: var(--card); backdrop-filter: blur(10px);
-    border: 1px solid var(--line); border-radius: 16px;
-    box-shadow: var(--glow);
-    transition: transform .12s ease, box-shadow .12s ease;
-  }
-  li:hover { transform: translateY(-2px);
-    box-shadow: 0 0 0 1px var(--accent), 0 12px 34px rgba(0,0,0,.5), 0 0 26px rgba(56,225,255,.3); }
-  li input[type=checkbox] { width: 24px; height: 24px; accent-color: var(--accent); cursor: pointer; flex: none; }
-  li .task { flex: 1; font-size: 18px; }
-  li .date {
-    font-size: 13px; font-weight: 700; color: var(--accent2);
-    font-variant-numeric: tabular-nums; white-space: nowrap;
-    padding: 4px 12px; border-radius: 999px;
-    background: rgba(180,107,255,.14); border: 1px solid rgba(180,107,255,.35);
-  }
-  .empty { color: var(--muted); font-size: 16px; padding: 10px 4px; }
-  li.leaving { animation: pop .28s ease forwards; }
+  .glow { border-radius: 18px; }
+  .datebox { padding: 14px 34px; background: rgba(6,14,11,.32); backdrop-filter: blur(4px); }
+  .date { font-family: "Sora", sans-serif; font-weight: 800; letter-spacing: -.01em; color: #fff; white-space: nowrap;
+    font-size: clamp(28px, 5vw, 60px); line-height: 1; margin: 0; text-shadow: 0 3px 22px rgba(0,0,0,.85); }
+  .quotebox { max-width: 560px; padding: 14px 24px; background: rgba(6,14,11,.42); backdrop-filter: blur(6px); }
+  .quote { font-size: clamp(14px, 1.5vw, 18px); font-style: italic; color: #eef6f2; }
+  .quote b { display: block; margin-top: 8px; font-style: normal; font-weight: 500; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: #b0d3c9; }
+
+  .tabs { display: flex; gap: 10px; margin-top: 6px; }
+  .tab { padding: 9px 20px; font-size: 14px; font-weight: 700; letter-spacing: .02em; border-radius: 999px; cursor: pointer;
+    color: #dbeee7; background: rgba(6,14,11,.4); border: 1px solid rgba(255,255,255,.16); backdrop-filter: blur(6px); }
+  .tab.on { color: #062018; background: linear-gradient(90deg,#9df0ff,#8fe6c2); border-color: transparent;
+    box-shadow: 0 0 20px rgba(140,240,210,.45); }
+  .tab .badge { display: inline-block; min-width: 20px; margin-left: 8px; padding: 0 6px; font-size: 12px; line-height: 18px;
+    text-align: center; border-radius: 999px; background: rgba(255,255,255,.18); }
+  .tab.on .badge { background: rgba(0,0,0,.18); }
+
+  form { display: flex; gap: 10px; width: 100%; max-width: 560px; }
+  #task { flex: 1; padding: 14px 16px; font-size: 16px; color: #f3f7f6; border-radius: 13px;
+    border: 1px solid rgba(255,255,255,.18); background: rgba(6,14,11,.5); backdrop-filter: blur(6px); }
+  #task::placeholder { color: #9fbdb2; }
+  #task:focus { outline: none; border-color: #9df0ff; box-shadow: 0 0 0 1px #9df0ff, 0 0 22px rgba(140,240,210,.35); }
+  button.add { padding: 0 22px; font-size: 24px; font-weight: 800; cursor: pointer; border: none; border-radius: 13px;
+    color: #062018; background: linear-gradient(90deg,#9df0ff,#8fe6c2); box-shadow: 0 0 22px rgba(140,240,210,.4); }
+
+  ul { list-style: none; margin: 4px 0 0; padding: 0; width: 100%; max-width: 560px; }
+  .task { display: flex; align-items: center; gap: 14px; text-align: left; padding: 14px 16px; margin-bottom: 10px;
+    border-radius: 14px; border: 1px solid rgba(255,255,255,.14); background: rgba(6,14,11,.5); backdrop-filter: blur(8px);
+    cursor: pointer; transition: transform .12s ease; }
+  .task:hover { transform: translateY(-1px); }
+  .task.active { border-color: transparent; }
+  .task input[type=checkbox] { width: 22px; height: 22px; accent-color: #8fe6c2; cursor: pointer; flex: none; }
+  .task .txt { flex: 1; font-size: 16px; }
+  .task .date { font-size: 12px; font-weight: 700; color: #bfeede; font-variant-numeric: tabular-nums; white-space: nowrap;
+    padding: 4px 11px; border-radius: 999px; background: rgba(143,230,194,.14); border: 1px solid rgba(143,230,194,.35); }
+  .empty { color: #a7c4bc; font-size: 15px; padding: 8px 2px; }
+  .task.leaving { animation: pop .28s ease forwards; }
   @keyframes pop { to { transform: scale(.82); opacity: 0; } }
   [hidden] { display: none !important; }
 </style>
 </head>
 <body>
-<canvas id="bubbles"></canvas>
-<main>
-  <h1 id="today"></h1>
+<div id="photo"></div>
+<div id="scrim"></div>
+<canvas id="weather"></canvas>
+
+<div class="app">
+  <div class="glow datebox"><h1 class="date" id="today"></h1></div>
+  <div class="glow quotebox"><div class="quote" id="q"></div></div>
 
   <div class="tabs">
     <div class="tab on" data-tab="today">Today</div>
     <div class="tab" data-tab="pending">Pending<span class="badge" id="pcount">0</span></div>
   </div>
 
-  <section id="view-today">
+  <section id="view-today" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:14px">
     <form id="add">
-      <input type="text" id="task" placeholder="Enter a task…" autocomplete="off" required>
-      <button class="add" type="submit">+</button>
+      <input id="task" type="text" placeholder="Add a task for today…" autocomplete="off" required>
+      <button class="add" type="submit" aria-label="Add task">+</button>
     </form>
     <ul id="list"></ul>
   </section>
 
-  <section id="view-pending" hidden>
+  <section id="view-pending" hidden style="width:100%;display:flex;justify-content:center">
     <ul id="pending"></ul>
   </section>
-</main>
+</div>
 
 <script>
+// ---------- daily quote ----------
+const QUOTES = [
+  ["The only way to do great work is to love what you do.","Steve Jobs"],
+  ["What you get by achieving your goals is not as important as what you become by achieving them.","Zig Ziglar"],
+  ["The future belongs to those who believe in the beauty of their dreams.","Eleanor Roosevelt"],
+  ["It is never too late to be what you might have been.","George Eliot"],
+  ["Do not go where the path may lead, go instead where there is no path and leave a trail.","Ralph Waldo Emerson"],
+  ["The mind is everything. What you think you become.","Buddha"],
+  ["Your time is limited, so don't waste it living someone else's life.","Steve Jobs"],
+  ["We are what we repeatedly do. Excellence, then, is not an act, but a habit.","Aristotle"],
+  ["The best way to predict the future is to create it.","Peter Drucker"],
+  ["Believe you can and you're halfway there.","Theodore Roosevelt"],
+  ["Everything you've ever wanted is on the other side of fear.","George Addair"],
+  ["Start where you are. Use what you have. Do what you can.","Arthur Ashe"],
+  ["The only limit to our realization of tomorrow is our doubts of today.","Franklin D. Roosevelt"],
+  ["Act as if what you do makes a difference. It does.","William James"],
+  ["Success is not final, failure is not fatal: it is the courage to continue that counts.","Winston Churchill"],
+  ["Well done is better than well said.","Benjamin Franklin"],
+  ["The secret of getting ahead is getting started.","Mark Twain"],
+  ["Discipline is choosing between what you want now and what you want most.","Abraham Lincoln"],
+  ["A year from now you may wish you had started today.","Karen Lamb"],
+  ["The journey of a thousand miles begins with one step.","Lao Tzu"],
+  ["You miss 100% of the shots you don't take.","Wayne Gretzky"],
+  ["Whether you think you can or you think you can't, you're right.","Henry Ford"],
+  ["Hard work beats talent when talent doesn't work hard.","Tim Notke"],
+  ["Dream big and dare to fail.","Norman Vaughan"],
+  ["Little by little, one travels far.","J.R.R. Tolkien"],
+  ["Fall seven times, stand up eight.","Japanese Proverb"],
+  ["The way to get started is to quit talking and begin doing.","Walt Disney"],
+  ["Your limitation—it's only your imagination.","Unknown"],
+  ["Great things never come from comfort zones.","Unknown"],
+  ["Push yourself, because no one else is going to do it for you.","Unknown"],
+  ["Sometimes later becomes never. Do it now.","Unknown"],
+  ["Don't watch the clock; do what it does. Keep going.","Sam Levenson"],
+  ["Quality is not an act, it is a habit.","Aristotle"],
+  ["The harder you work for something, the greater you'll feel when you achieve it.","Unknown"],
+  ["Doubt kills more dreams than failure ever will.","Suzy Kassem"],
+  ["Setting goals is the first step in turning the invisible into the visible.","Tony Robbins"],
+  ["If you get tired, learn to rest, not to quit.","Banksy"],
+  ["What we think, we become.","Buddha"],
+  ["Opportunities don't happen, you create them.","Chris Grosser"],
+  ["It always seems impossible until it's done.","Nelson Mandela"],
+  ["A goal without a plan is just a wish.","Antoine de Saint-Exupéry"],
+  ["Focus on being productive instead of busy.","Tim Ferriss"],
+  ["Courage is one step ahead of fear.","Coleman Young"],
+  ["The best revenge is massive success.","Frank Sinatra"],
+  ["Either you run the day or the day runs you.","Jim Rohn"],
+  ["Wake up with determination. Go to bed with satisfaction.","Unknown"],
+  ["Do something today that your future self will thank you for.","Sean Patrick Flanery"],
+  ["Small steps every day add up to big results.","Unknown"],
+  ["Energy and persistence conquer all things.","Benjamin Franklin"],
+  ["The expert in anything was once a beginner.","Helen Hayes"],
+];
+const now = new Date();
+const doy = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 864e5);
+const qq = QUOTES[doy % QUOTES.length];
+document.getElementById("today").textContent = now.toLocaleDateString("en-US", { month:"long", day:"numeric", year:"numeric" });
+document.getElementById("q").innerHTML = `“${qq[0]}”<b>${qq[1]}</b>`;
+
+// ---------- tasks ----------
 const KEY = "todo.tasks";
-const todayStr = () => new Date().toISOString().slice(0, 10);      // YYYY-MM-DD
+const todayStr = () => new Date().toISOString().slice(0,10);
 const load = () => JSON.parse(localStorage.getItem(KEY) || "[]");
 const save = t => localStorage.setItem(KEY, JSON.stringify(t));
-
-document.getElementById("today").textContent =
-  new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-
 let tasks = load();
+let activeId = null;
 
 function render() {
   const today = todayStr();
@@ -148,44 +179,47 @@ function render() {
   list.innerHTML = ""; pending.innerHTML = "";
 
   const todays = tasks.filter(t => t.date === today);
-  const olds = tasks.filter(t => t.date < today);
+  const olds   = tasks.filter(t => t.date <  today);
 
   todays.forEach(t => list.appendChild(row(t, false)));
   olds.forEach(t => pending.appendChild(row(t, true)));
 
-  if (!todays.length) list.innerHTML = '<div class="empty">Nothing yet. Add your first task above.</div>';
-  if (!olds.length) pending.innerHTML = '<div class="empty">Nothing pending. Clean slate.</div>';
+  if (!todays.length) list.innerHTML = '<div class="empty">No tasks yet. Add your first one above.</div>';
+  if (!olds.length) pending.innerHTML = '<div class="empty">Nothing pending. Clean slate. 🌿</div>';
   document.getElementById("pcount").textContent = olds.length;
 }
 
 function row(t, showDate) {
   const li = document.createElement("li");
+  li.className = "task" + (t.id === activeId ? " active" : "");
+  li.onclick = e => { if (e.target.tagName === "INPUT") return;   // clicking the card focuses it (electric border)
+    activeId = (activeId === t.id) ? null : t.id; render(); };
+
   const cb = document.createElement("input");
   cb.type = "checkbox";
   cb.onchange = () => complete(t, li);
 
-  const span = document.createElement("span");
-  span.className = "task";
-  span.textContent = t.text;
+  const txt = document.createElement("span");
+  txt.className = "txt";
+  txt.textContent = t.text;
 
-  li.append(cb, span);
+  li.append(cb, txt);
   if (showDate) {
     const d = document.createElement("span");
     d.className = "date";
-    d.textContent = new Date(t.date + "T00:00").toLocaleDateString("en-US",
-      { month: "short", day: "numeric", year: "numeric" });
+    d.textContent = new Date(t.date + "T00:00").toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" });
     li.append(d);
   }
   return li;
 }
 
-// Completing deletes it forever — never stored.
+// completing a task deletes it forever — never stored
 function complete(task, li) {
   li.classList.add("leaving");
   setTimeout(() => {
     tasks = tasks.filter(x => x !== task);
-    save(tasks);
-    render();
+    if (activeId === task.id) activeId = null;
+    save(tasks); render();
   }, 260);
 }
 
@@ -194,72 +228,38 @@ document.getElementById("add").onsubmit = e => {
   const input = document.getElementById("task");
   const text = input.value.trim();
   if (!text) return;
-  tasks.push({ text, date: todayStr() });
-  save(tasks);
-  input.value = "";
-  render();
+  tasks.push({ id: Date.now() + "-" + Math.random().toString(36).slice(2,7), text, date: todayStr() });
+  save(tasks); input.value = ""; render();
 };
 
-// Tabs
-document.querySelectorAll(".tab").forEach(tab => {
-  tab.onclick = () => {
-    document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === tab));
-    const t = tab.dataset.tab;
-    document.getElementById("view-today").hidden = t !== "today";
-    document.getElementById("view-pending").hidden = t !== "pending";
-  };
+document.querySelectorAll(".tab").forEach(tab => tab.onclick = () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === tab));
+  const t = tab.dataset.tab;
+  document.getElementById("view-today").hidden = t !== "today";
+  document.getElementById("view-pending").hidden = t !== "pending";
 });
 
 render();
 
-// ---- Bubbles: mixed small + big, rise and pop at the top ----
-const cv = document.getElementById("bubbles");
-const ctx = cv.getContext("2d");
-let W, H, bubbles = [];
-function resize() { W = cv.width = innerWidth; H = cv.height = innerHeight; }
-resize(); addEventListener("resize", resize);
-
-function spawn() {
-  // half small, half big
-  const big = Math.random() < .45;
-  const r = big ? 26 + Math.random() * 44 : 4 + Math.random() * 16;
-  return { x: Math.random() * W, y: H + r, r, v: (big ? .25 : .5) + Math.random() * .9,
-           wob: Math.random() * Math.PI * 2, pop: 0 };
+// ---------- drifting mist weather ----------
+const cv = document.getElementById("weather"), ctx = cv.getContext("2d");
+let W, H, puffs;
+const R = (a,b) => a + Math.random()*(b-a);
+function fit() {
+  const dpr = Math.min(devicePixelRatio||1, 2);
+  cv.width = innerWidth*dpr; cv.height = innerHeight*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
+  W = innerWidth; H = innerHeight; puffs = [];
+  for (let i=0;i<7;i++) puffs.push({x:Math.random()*W, y:H*R(.08,.5),  rx:R(240,460), ry:R(70,130),  a:R(.03,.07), v:R(.10,.28), ph:Math.random()*6.28, ps:R(.002,.005)});
+  for (let i=0;i<6;i++) puffs.push({x:Math.random()*W, y:H*R(.62,.98), rx:R(320,600), ry:R(120,200), a:R(.06,.13), v:R(.18,.42), ph:Math.random()*6.28, ps:R(.002,.006)});
 }
-for (let i = 0; i < 30; i++) { const b = spawn(); b.y = Math.random() * H; bubbles.push(b); }
-
-function tick() {
-  ctx.clearRect(0, 0, W, H);
-  for (let i = 0; i < bubbles.length; i++) {
-    let b = bubbles[i];
-    if (b.pop > 0) {
-      b.pop += .07;
-      drawPop(b);
-      if (b.pop > 1) bubbles[i] = spawn();
-      continue;
-    }
-    b.y -= b.v; b.wob += .03;
-    b.x += Math.sin(b.wob) * .5;
-    if (b.y - b.r < 46) b.pop = .01;      // reached the top => pop
-    drawBubble(b);
-  }
-  requestAnimationFrame(tick);
-}
-function drawBubble(b) {
-  const g = ctx.createRadialGradient(b.x - b.r/3, b.y - b.r/3, 1, b.x, b.y, b.r);
-  g.addColorStop(0, "rgba(255,255,255,.85)");
-  g.addColorStop(.4, "rgba(120,220,255,.28)");
-  g.addColorStop(1, "rgba(150,110,255,.10)");
-  ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fillStyle = g; ctx.fill();
-  ctx.strokeStyle = "rgba(180,230,255,.45)"; ctx.lineWidth = 1; ctx.stroke();
-}
-function drawPop(b) {
-  const R = b.r * (1 + b.pop * 1.4);
-  ctx.beginPath(); ctx.arc(b.x, b.y, R, 0, 7);
-  ctx.strokeStyle = `rgba(120,220,255,${(1 - b.pop) * .6})`;
-  ctx.lineWidth = 2; ctx.stroke();
-}
-tick();
+fit(); addEventListener("resize", fit);
+(function loop(){ ctx.clearRect(0,0,W,H);
+  for (const p of puffs) { p.x += p.v; p.ph += p.ps; if (p.x - p.rx > W) p.x = -p.rx;
+    const y = p.y + Math.sin(p.ph)*10, a = p.a*(.8 + .2*Math.sin(p.ph*1.3));
+    const g = ctx.createRadialGradient(p.x,y,0,p.x,y,p.rx);
+    g.addColorStop(0,`rgba(226,234,231,${a})`); g.addColorStop(.6,`rgba(220,230,228,${a*.5})`); g.addColorStop(1,"rgba(220,230,228,0)");
+    ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(p.x,y,p.rx,p.ry,0,0,7); ctx.fill(); }
+  requestAnimationFrame(loop); })();
 </script>
 </body>
 </html>
