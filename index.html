@@ -47,12 +47,16 @@
   .quote b { font-style: normal; font-weight: 600; font-size: .9em; color: #b9dcd2; white-space: nowrap; }
 
   .tabs { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 8px; }
-  .tab { padding: 10px 18px; font-size: 16px; font-weight: 700; letter-spacing: .03em; border-radius: 999px; cursor: pointer;
+  .tab, .chip { padding: 10px 18px; font-size: 16px; font-weight: 700; letter-spacing: .03em; border-radius: 999px; cursor: pointer;
     color: #dbeee7; background: rgba(6,14,11,.4); border: 1px solid rgba(255,255,255,.18); backdrop-filter: blur(6px);
     transition: transform .12s ease; }
-  .tab:hover { transform: translateY(-1px); }
-  .tab.on { color: #062018; background: linear-gradient(90deg,#9df0ff,#8fe6c2); border-color: transparent;
+  .tab:hover, .chip:hover { transform: translateY(-1px); }
+  .tab.on, .chip.on { color: #062018; background: linear-gradient(90deg,#9df0ff,#8fe6c2); border-color: transparent;
     box-shadow: 0 0 26px rgba(140,240,210,.55); }
+  .chip { padding: 6px 13px; font-size: 13px; }
+  .chip.on[data-s=yet]   { background: #ff6b6b; box-shadow: 0 0 20px rgba(255,107,107,.45); }
+  .chip.on[data-s=doing] { background: #ffd166; box-shadow: 0 0 20px rgba(255,209,102,.45); }
+  .chip.on[data-s=done]  { background: #6ee7a8; box-shadow: 0 0 20px rgba(110,231,168,.45); }
   .tab .badge { display: inline-block; min-width: 20px; margin-left: 8px; padding: 0 7px; font-size: 13px; line-height: 19px;
     text-align: center; border-radius: 999px; background: rgba(255,255,255,.18); }
   .tab.on .badge { background: rgba(0,0,0,.18); }
@@ -102,6 +106,13 @@
     <div class="tab" data-tab="tomorrow">Tomorrow</div>
     <div class="tab" data-tab="pending">Pending<span class="badge" id="pcount">0</span></div>
     <div class="tab" data-tab="long">Long-term</div>
+  </div>
+
+  <div class="tabs" id="filters" hidden>
+    <div class="chip on" data-s="all">All</div>
+    <div class="chip" data-s="yet">Yet to start</div>
+    <div class="chip" data-s="doing">In progress</div>
+    <div class="chip" data-s="done">Completed</div>
   </div>
 
   <section style="width:100%;display:flex;flex-direction:column;align-items:center;gap:14px">
@@ -519,14 +530,17 @@ const save = t => {
 let tasks = load();
 let activeId = null;
 let tab = "today";
+let statusFilter = "all";
 
 const STATUSES = [["yet","Yet to start"],["doing","In progress"],["done","Completed"]];
+const statusOf = t => t.status || "yet";
 const TABS = {
   // a tomorrow task needs no migration: the next day it simply matches "today"
   today:    { pick: (t, d) => !t.long && t.date === d,  hint: "Add a task for today…",     empty: "No tasks yet. Add your first one above." },
   tomorrow: { pick: (t, d) => !t.long && t.date >   d,  hint: "Add a task for tomorrow…",  empty: "Nothing planned for tomorrow yet." },
   pending:  { pick: (t, d) => !t.long && t.date <   d,  hint: "",                          empty: "Nothing pending. Clean slate. 🌿" },
-  long:     { pick: t => t.long,                        hint: "Add a long-term task…",     empty: "No long-term tasks. Think bigger. 🌱" },
+  long:     { pick: t => t.long && (statusFilter === "all" || statusOf(t) === statusFilter),
+              hint: "Add a long-term task…", empty: "Nothing here. Try another status. 🌱" },
 };
 
 function render() {
@@ -540,6 +554,7 @@ function render() {
 
   document.getElementById("pcount").textContent = tasks.filter(t => TABS.pending.pick(t, today)).length;
   document.getElementById("add").hidden = tab === "pending";   // pending is read-only: finish it or let it rot
+  document.getElementById("filters").hidden = tab !== "long";
   document.getElementById("task").placeholder = TABS[tab].hint;
 }
 
@@ -563,7 +578,7 @@ function row(t) {
     const sel = document.createElement("select");
     STATUSES.forEach(([v, label]) => sel.add(new Option(label, v, false, v === (t.status || "yet"))));
     sel.dataset.s = t.status || "yet";
-    sel.onchange = () => { t.status = sel.dataset.s = sel.value; save(tasks); };
+    sel.onchange = () => { t.status = sel.dataset.s = sel.value; save(tasks); render(); };   // re-render: it may no longer match the filter
     li.append(sel);
   } else if (tab === "pending" || tab === "tomorrow") {
     const d = document.createElement("span");
@@ -599,6 +614,12 @@ document.querySelectorAll(".tab").forEach(el => el.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === el));
   tab = el.dataset.tab;
   activeId = null;
+  render();
+});
+
+document.querySelectorAll(".chip").forEach(el => el.onclick = () => {
+  document.querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === el));
+  statusFilter = el.dataset.s;
   render();
 });
 
