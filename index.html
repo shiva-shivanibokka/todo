@@ -55,8 +55,8 @@
   .date { font-family: "Sora", sans-serif; font-weight: 800; letter-spacing: -.01em; color: #fff; white-space: nowrap;
     font-size: clamp(40px, 6.6vw, 88px); line-height: 1; margin: 0; text-shadow: 0 3px 22px rgba(0,0,0,.85); }
   .quotebox { width: 100%; padding: 22px 30px; background: rgba(6,14,11,.42); backdrop-filter: blur(6px); }
-  .quote { font-size: clamp(13px, 1.15vw, 16px); line-height: 1.4; font-style: italic; color: #eef6f2; }
-  .quote b { display: block; margin-top: 6px; font-style: normal; font-weight: 600; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #b0d3c9; }
+  .quote { font-size: clamp(16px, 1.7vw, 21px); line-height: 1.4; font-style: italic; color: #eef6f2; }
+  .quote b { font-style: normal; font-weight: 600; font-size: .9em; color: #b9dcd2; white-space: nowrap; }
 
   .tabs { display: flex; gap: 14px; margin-top: 8px; }
   .tab { padding: 15px 40px; font-size: 20px; font-weight: 700; letter-spacing: .03em; border-radius: 999px; cursor: pointer;
@@ -70,7 +70,7 @@
   .tab.on .badge { background: rgba(0,0,0,.18); }
 
   form { display: flex; gap: 10px; width: 100%; }
-  #task { flex: 1; padding: 14px 16px; font-size: 16px; color: #f3f7f6; border-radius: 13px;
+  #task { flex: 1; padding: 16px 18px; font-size: 20px; color: #f3f7f6; border-radius: 13px;
     border: 1px solid rgba(255,255,255,.18); background: rgba(6,14,11,.5); backdrop-filter: blur(6px); }
   #task::placeholder { color: #9fbdb2; }
   #task:focus { outline: none; border-color: #9df0ff; box-shadow: 0 0 0 1px #9df0ff, 0 0 22px rgba(140,240,210,.35); }
@@ -503,7 +503,7 @@ const now = new Date();
 const doy = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 864e5);
 const qq = QUOTES[doy % QUOTES.length];
 document.getElementById("today").textContent = now.toLocaleDateString("en-US", { month:"long", day:"numeric", year:"numeric" });
-document.getElementById("q").innerHTML = `“${qq[0]}”<b>${qq[1]}</b>`;
+document.getElementById("q").innerHTML = `“${qq[0]}” <b>— ${qq[1]}</b>`;
 
 // ---------- tasks ----------
 const KEY = "todo.tasks";
