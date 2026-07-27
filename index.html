@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Today</title>
+<style>
+  :root {
+    --ink: #0f2740;
+    --muted: #5b7891;
+    --line: rgba(15,39,64,.12);
+    --accent: #2f9bd8;
+    --card: rgba(255,255,255,.72);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    color: var(--ink);
+    background: linear-gradient(180deg, #d7f0fb 0%, #eaf7fd 40%, #f6fbfe 100%);
+    overflow-x: hidden;
+  }
+  #bubbles { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+  main {
+    position: relative; z-index: 1;
+    max-width: 640px; margin: 0 auto; padding: 6vh 24px 12vh;
+  }
+  h1 {
+    font-size: clamp(38px, 8vw, 76px);
+    line-height: 1.02;
+    font-weight: 800;
+    letter-spacing: -.02em;
+    margin: 0 0 28px;
+  }
+  form { display: flex; gap: 10px; margin-bottom: 8px; }
+  input[type=text] {
+    flex: 1; padding: 14px 16px; font-size: 17px;
+    border: 1px solid var(--line); border-radius: 12px;
+    background: var(--card); backdrop-filter: blur(6px); color: var(--ink);
+  }
+  input[type=text]:focus { outline: 2px solid var(--accent); border-color: transparent; }
+  button.add {
+    padding: 0 20px; font-size: 22px; font-weight: 700;
+    border: none; border-radius: 12px; background: var(--accent); color: #fff; cursor: pointer;
+  }
+  ul { list-style: none; margin: 14px 0 0; padding: 0; }
+  li {
+    display: flex; align-items: center; gap: 14px;
+    padding: 13px 16px; margin-bottom: 8px;
+    background: var(--card); backdrop-filter: blur(6px);
+    border: 1px solid var(--line); border-radius: 12px;
+  }
+  li input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--accent); cursor: pointer; flex: none; }
+  li .task { flex: 1; font-size: 17px; }
+  li .date { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  h2 {
+    font-size: 14px; text-transform: uppercase; letter-spacing: .12em;
+    color: var(--muted); margin: 40px 0 4px;
+  }
+  .empty { color: var(--muted); font-size: 15px; padding: 6px 2px; }
+  li.leaving { animation: pop .28s ease forwards; }
+  @keyframes pop { to { transform: scale(.85); opacity: 0; } }
+</style>
+</head>
+<body>
+<canvas id="bubbles"></canvas>
+<main>
+  <h1 id="today"></h1>
+  <form id="add">
+    <input type="text" id="task" placeholder="Enter a task…" autocomplete="off" required>
+    <button class="add" type="submit">+</button>
+  </form>
+  <ul id="list"></ul>
+
+  <h2>Pending</h2>
+  <ul id="pending"></ul>
+</main>
+
+<script>
+const KEY = "todo.tasks";
+const todayStr = () => new Date().toISOString().slice(0, 10);      // YYYY-MM-DD
+const load = () => JSON.parse(localStorage.getItem(KEY) || "[]");
+const save = t => localStorage.setItem(KEY, JSON.stringify(t));
+
+// Pretty date: "March 1, 1993"
+document.getElementById("today").textContent =
+  new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+
+// Prune: completed tasks are never persisted, so nothing to prune there.
+// Tasks are just {text, date}. date < today => pending.
+let tasks = load();
+
+function render() {
+  const today = todayStr();
+  const list = document.getElementById("list");
+  const pending = document.getElementById("pending");
+  list.innerHTML = ""; pending.innerHTML = "";
+
+  const todays = tasks.filter(t => t.date === today);
+  const olds = tasks.filter(t => t.date < today);
+
+  todays.forEach(t => list.appendChild(row(t, false)));
+  olds.forEach(t => pending.appendChild(row(t, true)));
+
+  if (!olds.length) pending.innerHTML = '<div class="empty">Nothing pending. Clean slate.</div>';
+}
+
+function row(t, showDate) {
+  const li = document.createElement("li");
+  const cb = document.createElement("input");
+  cb.type = "checkbox";
+  cb.onchange = () => complete(t, li);
+
+  const span = document.createElement("span");
+  span.className = "task";
+  span.textContent = t.text;
+
+  li.append(cb, span);
+  if (showDate) {
+    const d = document.createElement("span");
+    d.className = "date";
+    d.textContent = new Date(t.date + "T00:00").toLocaleDateString("en-US",
+      { month: "short", day: "numeric", year: "numeric" });
+    li.append(d);
+  }
+  return li;
+}
+
+// Completing deletes it forever — never stored.
+function complete(task, li) {
+  li.classList.add("leaving");
+  setTimeout(() => {
+    tasks = tasks.filter(x => x !== task);
+    save(tasks);
+    render();
+  }, 260);
+}
+
+document.getElementById("add").onsubmit = e => {
+  e.preventDefault();
+  const input = document.getElementById("task");
+  const text = input.value.trim();
+  if (!text) return;
+  tasks.push({ text, date: todayStr() });
+  save(tasks);
+  input.value = "";
+  render();
+};
+
+render();
+
+// ---- Bubbles that rise and pop at the top ----
+const cv = document.getElementById("bubbles");
+const ctx = cv.getContext("2d");
+let W, H, bubbles = [];
+function resize() { W = cv.width = innerWidth; H = cv.height = innerHeight; }
+resize(); addEventListener("resize", resize);
+
+function spawn() {
+  const r = 6 + Math.random() * 22;
+  return { x: Math.random() * W, y: H + r, r, v: .4 + Math.random() * 1.1,
+           wob: Math.random() * Math.PI * 2, pop: 0 };
+}
+for (let i = 0; i < 26; i++) { const b = spawn(); b.y = Math.random() * H; bubbles.push(b); }
+
+function tick() {
+  ctx.clearRect(0, 0, W, H);
+  for (let i = 0; i < bubbles.length; i++) {
+    let b = bubbles[i];
+    if (b.pop > 0) {                        // popping animation near the top
+      b.pop += .08;
+      drawPop(b);
+      if (b.pop > 1) bubbles[i] = spawn();
+      continue;
+    }
+    b.y -= b.v; b.wob += .03;
+    b.x += Math.sin(b.wob) * .5;
+    if (b.y - b.r < 40) b.pop = .01;        // reached the top => pop
+    drawBubble(b);
+  }
+  requestAnimationFrame(tick);
+}
+function drawBubble(b) {
+  const g = ctx.createRadialGradient(b.x - b.r/3, b.y - b.r/3, 1, b.x, b.y, b.r);
+  g.addColorStop(0, "rgba(255,255,255,.9)");
+  g.addColorStop(.5, "rgba(120,200,240,.35)");
+  g.addColorStop(1, "rgba(80,170,220,.12)");
+  ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,.6)"; ctx.lineWidth = 1; ctx.stroke();
+}
+function drawPop(b) {                        // little ring burst
+  const R = b.r * (1 + b.pop * 1.4);
+  ctx.beginPath(); ctx.arc(b.x, b.y, R, 0, 7);
+  ctx.strokeStyle = `rgba(120,200,240,${(1 - b.pop) * .7})`;
+  ctx.lineWidth = 2; ctx.stroke();
+}
+tick();
+</script>
+</body>
+</html>
