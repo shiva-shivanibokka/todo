@@ -12,11 +12,25 @@
   @property --ang { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
   * { box-sizing: border-box; }
   html, body { margin: 0; min-height: 100%; }
-  body { font-family: "Space Grotesk", system-ui, sans-serif; color: #f3f7f6; background: #0a140f; overflow-x: hidden; }
+  body { font-family: "Space Grotesk", system-ui, sans-serif; color: #f3f7f6; background: #05060d; overflow-x: hidden; }
 
-  #sky    { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; }
-  #scrim  { position: fixed; inset: 0; z-index: 1; pointer-events: none;
-    background: radial-gradient(120% 90% at 50% 42%, rgba(6,6,20,.05) 0%, rgba(6,6,20,.28) 60%, rgba(4,4,14,.55) 100%); }
+  /* animated gradient mesh — slow-drifting purple/teal blobs on near-black */
+  .bg-mesh { position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(60% 60% at 20% 26%, rgba(76,29,149,.55), transparent 62%),
+      radial-gradient(55% 55% at 82% 24%, rgba(6,78,59,.5), transparent 62%),
+      radial-gradient(60% 60% at 74% 82%, rgba(49,10,101,.5), transparent 62%),
+      radial-gradient(52% 52% at 22% 84%, rgba(15,118,110,.42), transparent 62%),
+      #05060d;
+    background-size: 180% 180%;
+    filter: blur(30px) saturate(1.05);
+    animation: meshmove 28s ease-in-out infinite alternate; }
+  @keyframes meshmove {
+    0%   { background-position: 0% 0%, 100% 0%, 100% 100%, 0% 100%; }
+    100% { background-position: 100% 100%, 0% 100%, 0% 0%, 100% 0%; }
+  }
+  #fx { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+  @media (prefers-reduced-motion: reduce) { .bg-mesh { animation: none; } }
 
   .app { position: relative; z-index: 3; margin: 0 auto; padding: 6vh 2in 14vh;   /* 2-inch gutter each side */
     display: flex; flex-direction: column; align-items: center; gap: 22px; text-align: center; }
@@ -41,8 +55,8 @@
   .date { font-family: "Sora", sans-serif; font-weight: 800; letter-spacing: -.01em; color: #fff; white-space: nowrap;
     font-size: clamp(40px, 6.6vw, 88px); line-height: 1; margin: 0; text-shadow: 0 3px 22px rgba(0,0,0,.85); }
   .quotebox { width: 100%; padding: 22px 30px; background: rgba(6,14,11,.42); backdrop-filter: blur(6px); }
-  .quote { font-size: clamp(16px, 1.7vw, 22px); line-height: 1.35; font-style: italic; color: #eef6f2; }
-  .quote b { display: block; margin-top: 8px; font-style: normal; font-weight: 600; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: #b0d3c9; }
+  .quote { font-size: clamp(13px, 1.15vw, 16px); line-height: 1.4; font-style: italic; color: #eef6f2; }
+  .quote b { display: block; margin-top: 6px; font-style: normal; font-weight: 600; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #b0d3c9; }
 
   .tabs { display: flex; gap: 14px; margin-top: 8px; }
   .tab { padding: 15px 40px; font-size: 20px; font-weight: 700; letter-spacing: .03em; border-radius: 999px; cursor: pointer;
@@ -80,8 +94,8 @@
 </style>
 </head>
 <body>
-<canvas id="sky"></canvas>
-<div id="scrim"></div>
+<div class="bg-mesh"></div>
+<canvas id="fx"></canvas>
 
 <div class="app">
   <div class="glow datebox"><h1 class="date" id="today"></h1></div>
@@ -578,70 +592,53 @@ document.querySelectorAll(".tab").forEach(tab => tab.onclick = () => {
 
 render();
 
-// ---------- cartoonish anime dusk scene (vector-illustration style) ----------
-const cv = document.getElementById("sky"), x = cv.getContext("2d");
-let W, H, stars, clouds, hills, shoot, paused = false;
+// ---------- drifting glowing fireflies over the animated mesh ----------
+const cv = document.getElementById("fx"), x = cv.getContext("2d");
+const COUNT = 120;
+// hues that glow on dark purple/teal: sky, violet, mint, gold, lilac
+const PALETTE = [[125,211,252],[167,139,250],[94,234,212],[253,224,138],[209,196,255]];
 const RND = (a,b) => a + Math.random()*(b-a);
-function skyBuild() {
+let W, H, flies, t = 0, paused = false;
+function fxBuild() {
   const d = Math.min(devicePixelRatio||1, 2);
   cv.width = innerWidth*d; cv.height = innerHeight*d; x.setTransform(d,0,0,d,0,0);
   W = innerWidth; H = innerHeight;
-  stars  = Array.from({length:140}, () => ({x:Math.random()*W, y:Math.random()*H*.6, r:RND(.5,1.6), tw:Math.random()*6.28, ts:RND(.02,.06)}));
-  clouds = Array.from({length:6}, (_,i) => ({x:Math.random()*W, y:H*(.16+i*.06), s:RND(50,110), v:RND(.06,.2), a:RND(.5,.85), warm:i%2}));
-  // layered anime hills: [color, baseFrac, amplitude, roughness]
-  hills = [["#2a3566",.66,26,.7],["#3a2d63",.74,34,.6],["#4a2a5e",.83,42,.5],["#241a3a",.95,54,.45],["#140f24",1.06,60,.4]];
-  shoot = [];
+  flies = Array.from({length:COUNT}, () => ({
+    x: Math.random()*W, y: Math.random()*H, r: RND(1.5,3.9),
+    vx: RND(-0.15,0.15), vy: RND(-0.65,-0.15), ph: Math.random()*7, tw: RND(0.6,2.3),
+    c: PALETTE[(Math.random()*PALETTE.length)|0],
+  }));
 }
-skyBuild(); addEventListener("resize", skyBuild);
+fxBuild(); addEventListener("resize", fxBuild);
 document.addEventListener("visibilitychange", () => {                 // pause when tab hidden (battery)
-  paused = document.hidden; if (!paused) requestAnimationFrame(skyDraw);
+  paused = document.hidden; if (!paused) requestAnimationFrame(fxDraw);
 });
-function animeCloud(cx, cy, s, a, warm) {
-  x.globalAlpha = a; x.fillStyle = warm ? "#ffc7de" : "#c9c0ef";
-  [[-.9,.1,.55],[-.4,-.05,.75],[.2,-.12,.9],[.85,.05,.62],[.45,.15,.7]].forEach(p => {
-    x.beginPath(); x.arc(cx+p[0]*s, cy+p[1]*s, p[2]*s, 0, 7); x.fill(); });
-  x.globalAlpha = 1;
-}
-function skyDraw() {
+function fxDraw() {
   if (paused) return;
-  const t = performance.now();
-  // posterized anime dusk sky
-  const g = x.createLinearGradient(0,0,0,H);
-  g.addColorStop(0,"#191a4a"); g.addColorStop(.32,"#3b2a72"); g.addColorStop(.55,"#7e3d86");
-  g.addColorStop(.74,"#c85f7d"); g.addColorStop(.9,"#f0956a"); g.addColorStop(1,"#ffc98a");
-  x.fillStyle = g; x.fillRect(0,0,W,H);
-  // big anime moon with soft glow
-  const mx = W*.72, my = H*.30, mr = Math.min(W,H)*.11;
-  const mg = x.createRadialGradient(mx,my,0,mx,my,mr*3.4);
-  mg.addColorStop(0,"rgba(255,240,220,.5)"); mg.addColorStop(1,"rgba(255,240,220,0)");
-  x.fillStyle = mg; x.beginPath(); x.arc(mx,my,mr*3.4,0,7); x.fill();
-  x.fillStyle = "#fff4e2"; x.beginPath(); x.arc(mx,my,mr,0,7); x.fill();
-  x.fillStyle = "rgba(255,214,180,.35)"; x.beginPath(); x.arc(mx+mr*.28,my+mr*.15,mr*.72,0,7); x.fill();
-  // stars
-  for (const s of stars) { s.tw += s.ts; const a = .3 + .6*Math.abs(Math.sin(s.tw));
-    x.fillStyle = `rgba(255,255,255,${a})`; x.beginPath(); x.arc(s.x,s.y,s.r,0,7); x.fill(); }
-  // occasional shooting star
-  if (shoot.length === 0 && Math.random() < .008)
-    shoot.push({x:RND(.1,.7)*W, y:RND(.05,.3)*H, vx:RND(6,9), vy:RND(2.5,4), len:RND(120,200)});
-  for (let i = shoot.length-1; i >= 0; i--) { const s = shoot[i]; s.x += s.vx; s.y += s.vy;
-    const ang = Math.atan2(s.vy,s.vx), tx = s.x-Math.cos(ang)*s.len, ty = s.y-Math.sin(ang)*s.len;
-    const gg = x.createLinearGradient(s.x,s.y,tx,ty);
-    gg.addColorStop(0,"rgba(255,255,255,.9)"); gg.addColorStop(1,"rgba(255,255,255,0)");
-    x.strokeStyle = gg; x.lineWidth = 2; x.lineCap = "round";
-    x.beginPath(); x.moveTo(s.x,s.y); x.lineTo(tx,ty); x.stroke();
-    if (s.x > W+s.len) shoot.splice(i,1); }
-  // drifting flat anime clouds
-  for (const c of clouds) { c.x += c.v; if (c.x - c.s*1.9 > W) c.x = -c.s*1.9; animeCloud(c.x,c.y,c.s,c.a,c.warm); }
-  // layered silhouette hills with gentle parallax
-  hills.forEach((h,i) => { x.fillStyle = h[0]; x.beginPath(); x.moveTo(0,H);
-    const base = H*h[1], amp = h[2], ph = t*0.00006*(i+1);
-    for (let px = 0; px <= W; px += 16) {
-      const y = base + Math.sin(px*0.004*(1+h[3])+ph+i)*amp + Math.sin(px*0.011+ph)*amp*.3;
-      x.lineTo(px,y); }
-    x.lineTo(W,H); x.closePath(); x.fill(); });
-  requestAnimationFrame(skyDraw);
+  t += 0.035;
+  x.clearRect(0,0,W,H);
+  for (const f of flies) {
+    f.x += f.vx; f.y += f.vy;
+    if (f.y < -6) { f.y = H+6; f.x = Math.random()*W; }
+    if (f.x < -6) f.x = W+6; if (f.x > W+6) f.x = -6;
+    const a = 0.4 + 0.55*Math.sin(t*f.tw + f.ph);
+    const [r,g,b] = f.c;
+    // colored glow halo
+    const grad = x.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r*4.2);
+    grad.addColorStop(0, `rgba(${r},${g},${b},${0.55*a})`);
+    grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+    x.fillStyle = grad;
+    x.beginPath(); x.arc(f.x, f.y, f.r*4.2, 0, 7); x.fill();
+    // bright core with bloom
+    x.fillStyle = `rgba(255,255,255,${0.95*a})`;
+    x.shadowBlur = 16; x.shadowColor = `rgb(${r},${g},${b})`;
+    x.beginPath(); x.arc(f.x, f.y, f.r, 0, 7); x.fill();
+    x.shadowBlur = 0;
+  }
+  requestAnimationFrame(fxDraw);
 }
-skyDraw();
+if (matchMedia("(prefers-reduced-motion: reduce)").matches) fxDraw();  // single frame
+else fxDraw();
 </script>
 </body>
 </html>
