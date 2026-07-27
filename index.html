@@ -46,14 +46,14 @@
   .quote { font-size: clamp(16px, 1.7vw, 21px); line-height: 1.4; font-style: italic; color: #eef6f2; }
   .quote b { font-style: normal; font-weight: 600; font-size: .9em; color: #b9dcd2; white-space: nowrap; }
 
-  .tabs { display: flex; gap: 14px; margin-top: 8px; }
-  .tab { padding: 15px 40px; font-size: 20px; font-weight: 700; letter-spacing: .03em; border-radius: 999px; cursor: pointer;
+  .tabs { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 8px; }
+  .tab { padding: 10px 18px; font-size: 16px; font-weight: 700; letter-spacing: .03em; border-radius: 999px; cursor: pointer;
     color: #dbeee7; background: rgba(6,14,11,.4); border: 1px solid rgba(255,255,255,.18); backdrop-filter: blur(6px);
     transition: transform .12s ease; }
   .tab:hover { transform: translateY(-1px); }
   .tab.on { color: #062018; background: linear-gradient(90deg,#9df0ff,#8fe6c2); border-color: transparent;
     box-shadow: 0 0 26px rgba(140,240,210,.55); }
-  .tab .badge { display: inline-block; min-width: 26px; margin-left: 10px; padding: 1px 9px; font-size: 15px; line-height: 22px;
+  .tab .badge { display: inline-block; min-width: 20px; margin-left: 8px; padding: 0 7px; font-size: 13px; line-height: 19px;
     text-align: center; border-radius: 999px; background: rgba(255,255,255,.18); }
   .tab.on .badge { background: rgba(0,0,0,.18); }
 
@@ -75,6 +75,8 @@
   .task .txt { flex: 1; font-size: 20px; font-weight: 500; }
   .task .date { font-size: 12px; font-weight: 700; color: #bfeede; font-variant-numeric: tabular-nums; white-space: nowrap;
     padding: 4px 11px; border-radius: 999px; background: rgba(143,230,194,.14); border: 1px solid rgba(143,230,194,.35); }
+  .task select { flex: none; padding: 6px 10px; font: inherit; font-size: 14px; font-weight: 600; border-radius: 999px;
+    color: #062018; background: #8fe6c2; border: none; cursor: pointer; }
   .empty { color: #a7c4bc; font-size: 15px; padding: 8px 2px; }
   .task.leaving { animation: pop .28s ease forwards; }
   @keyframes pop { to { transform: scale(.82); opacity: 0; } }
@@ -90,19 +92,17 @@
 
   <div class="tabs">
     <div class="tab on" data-tab="today">Today</div>
+    <div class="tab" data-tab="tomorrow">Tomorrow</div>
     <div class="tab" data-tab="pending">Pending<span class="badge" id="pcount">0</span></div>
+    <div class="tab" data-tab="long">Long-term</div>
   </div>
 
-  <section id="view-today" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:14px">
+  <section style="width:100%;display:flex;flex-direction:column;align-items:center;gap:14px">
     <form id="add">
       <input id="task" type="text" placeholder="Add a task for today…" autocomplete="off" required>
       <button class="add" type="submit" aria-label="Add task">+</button>
     </form>
     <ul id="list"></ul>
-  </section>
-
-  <section id="view-pending" hidden style="width:100%;display:flex;justify-content:center">
-    <ul id="pending"></ul>
   </section>
 </div>
 
@@ -495,10 +495,12 @@ document.getElementById("q").innerHTML = `“${qq[0]}” <b>— ${qq[1]}</b>`;
 // ---------- tasks ----------
 const KEY = "todo.tasks";
 // local YYYY-MM-DD so grouping matches the displayed (local) date
-const todayStr = () => {
+const dateStr = (offsetDays = 0) => {
   const d = new Date();
+  d.setDate(d.getDate() + offsetDays);   // handles month/year rollover
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 };
+const todayStr = () => dateStr(0);
 const load = () => {
   try { return JSON.parse(localStorage.getItem(KEY) || "[]"); }
   catch { return []; }
@@ -509,28 +511,35 @@ const save = t => {
 };
 let tasks = load();
 let activeId = null;
+let tab = "today";
+
+const STATUSES = [["yet","Yet to start"],["doing","In progress"],["done","Completed"]];
+const TABS = {
+  // a tomorrow task needs no migration: the next day it simply matches "today"
+  today:    { pick: (t, d) => !t.long && t.date === d,  hint: "Add a task for today…",     empty: "No tasks yet. Add your first one above." },
+  tomorrow: { pick: (t, d) => !t.long && t.date >   d,  hint: "Add a task for tomorrow…",  empty: "Nothing planned for tomorrow yet." },
+  pending:  { pick: (t, d) => !t.long && t.date <   d,  hint: "",                          empty: "Nothing pending. Clean slate. 🌿" },
+  long:     { pick: t => t.long,                        hint: "Add a long-term task…",     empty: "No long-term tasks. Think bigger. 🌱" },
+};
 
 function render() {
   const today = todayStr();
   const list = document.getElementById("list");
-  const pending = document.getElementById("pending");
-  list.innerHTML = ""; pending.innerHTML = "";
+  list.innerHTML = "";
 
-  const todays = tasks.filter(t => t.date === today);
-  const olds   = tasks.filter(t => t.date <  today);
+  const items = tasks.filter(t => TABS[tab].pick(t, today));
+  items.forEach(t => list.appendChild(row(t)));
+  if (!items.length) list.innerHTML = `<div class="empty">${TABS[tab].empty}</div>`;
 
-  todays.forEach(t => list.appendChild(row(t, false)));
-  olds.forEach(t => pending.appendChild(row(t, true)));
-
-  if (!todays.length) list.innerHTML = '<div class="empty">No tasks yet. Add your first one above.</div>';
-  if (!olds.length) pending.innerHTML = '<div class="empty">Nothing pending. Clean slate. 🌿</div>';
-  document.getElementById("pcount").textContent = olds.length;
+  document.getElementById("pcount").textContent = tasks.filter(t => TABS.pending.pick(t, today)).length;
+  document.getElementById("add").hidden = tab === "pending";   // pending is read-only: finish it or let it rot
+  document.getElementById("task").placeholder = TABS[tab].hint;
 }
 
-function row(t, showDate) {
+function row(t) {
   const li = document.createElement("li");
   li.className = "task" + (t.id === activeId ? " active" : "");
-  li.onclick = e => { if (e.target.tagName === "INPUT") return;   // clicking the card focuses it (electric border)
+  li.onclick = e => { if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;   // clicking the card focuses it (electric border)
     activeId = (activeId === t.id) ? null : t.id; render(); };
 
   const cb = document.createElement("input");
@@ -542,7 +551,13 @@ function row(t, showDate) {
   txt.textContent = t.text;
 
   li.append(cb, txt);
-  if (showDate) {
+
+  if (t.long) {
+    const sel = document.createElement("select");
+    STATUSES.forEach(([v, label]) => sel.add(new Option(label, v, false, v === (t.status || "yet"))));
+    sel.onchange = () => { t.status = sel.value; save(tasks); };
+    li.append(sel);
+  } else if (tab === "pending" || tab === "tomorrow") {
     const d = document.createElement("span");
     d.className = "date";
     d.textContent = new Date(t.date + "T00:00").toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" });
@@ -566,15 +581,17 @@ document.getElementById("add").onsubmit = e => {
   const input = document.getElementById("task");
   const text = input.value.trim();
   if (!text) return;
-  tasks.push({ id: Date.now() + "-" + Math.random().toString(36).slice(2,7), text, date: todayStr() });
+  const task = { id: Date.now() + "-" + Math.random().toString(36).slice(2,7), text, date: dateStr(tab === "tomorrow" ? 1 : 0) };
+  if (tab === "long") { task.long = true; task.status = "yet"; }
+  tasks.push(task);
   save(tasks); input.value = ""; render();
 };
 
-document.querySelectorAll(".tab").forEach(tab => tab.onclick = () => {
-  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === tab));
-  const t = tab.dataset.tab;
-  document.getElementById("view-today").hidden = t !== "today";
-  document.getElementById("view-pending").hidden = t !== "pending";
+document.querySelectorAll(".tab").forEach(el => el.onclick = () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === el));
+  tab = el.dataset.tab;
+  activeId = null;
+  render();
 });
 
 render();
