@@ -19,8 +19,9 @@
     background: radial-gradient(120% 90% at 50% 30%, rgba(8,16,14,.15) 0%, rgba(8,16,14,.5) 55%, rgba(5,11,9,.8) 100%); }
   #weather{ position: fixed; inset: 0; z-index: 2; pointer-events: none; }
 
-  .app { position: relative; z-index: 3; max-width: 720px; margin: 0 auto; padding: 6vh 20px 14vh;
+  .app { position: relative; z-index: 3; margin: 0 auto; padding: 6vh 2in 14vh;   /* 2-inch gutter each side */
     display: flex; flex-direction: column; align-items: center; gap: 22px; text-align: center; }
+  @media (max-width: 900px) { .app { padding: 6vh 20px 12vh; } }
 
   /* electric glowing border, shared by date/quote boxes and the active task */
   .glow, .task.active { position: relative; }
@@ -29,18 +30,18 @@
   .task.active::before, .task.active::after {
     content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 2px; z-index: 1;
     background: conic-gradient(from var(--ang),
-      transparent 0deg, #9df0ff 55deg, #d6fff0 90deg, #8fe6c2 150deg, transparent 210deg, transparent 360deg);
+      #38e1ff, #7cf6ff, #8fe6c2, #ffe08a, #ff8fd0, #b46bff, #38e1ff);   /* full colorful edge */
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor; mask-composite: exclude; animation: spin 6s linear infinite;
+    -webkit-mask-composite: xor; mask-composite: exclude; animation: spin 2s linear infinite;
   }
   .glow::after, .task.active::after { filter: blur(9px); opacity: .8; }
   @keyframes spin { to { --ang: 360deg; } }
 
   .glow { border-radius: 18px; }
-  .datebox { padding: 14px 34px; background: rgba(6,14,11,.32); backdrop-filter: blur(4px); }
+  .datebox { width: 100%; padding: 18px 34px; background: rgba(6,14,11,.32); backdrop-filter: blur(4px); }
   .date { font-family: "Sora", sans-serif; font-weight: 800; letter-spacing: -.01em; color: #fff; white-space: nowrap;
     font-size: clamp(28px, 5vw, 60px); line-height: 1; margin: 0; text-shadow: 0 3px 22px rgba(0,0,0,.85); }
-  .quotebox { max-width: 560px; padding: 14px 24px; background: rgba(6,14,11,.42); backdrop-filter: blur(6px); }
+  .quotebox { width: 100%; padding: 14px 24px; background: rgba(6,14,11,.42); backdrop-filter: blur(6px); }
   .quote { font-size: clamp(14px, 1.5vw, 18px); font-style: italic; color: #eef6f2; }
   .quote b { display: block; margin-top: 8px; font-style: normal; font-weight: 500; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: #b0d3c9; }
 
@@ -53,7 +54,7 @@
     text-align: center; border-radius: 999px; background: rgba(255,255,255,.18); }
   .tab.on .badge { background: rgba(0,0,0,.18); }
 
-  form { display: flex; gap: 10px; width: 100%; max-width: 560px; }
+  form { display: flex; gap: 10px; width: 100%; }
   #task { flex: 1; padding: 14px 16px; font-size: 16px; color: #f3f7f6; border-radius: 13px;
     border: 1px solid rgba(255,255,255,.18); background: rgba(6,14,11,.5); backdrop-filter: blur(6px); }
   #task::placeholder { color: #9fbdb2; }
@@ -61,7 +62,7 @@
   button.add { padding: 0 22px; font-size: 24px; font-weight: 800; cursor: pointer; border: none; border-radius: 13px;
     color: #062018; background: linear-gradient(90deg,#9df0ff,#8fe6c2); box-shadow: 0 0 22px rgba(140,240,210,.4); }
 
-  ul { list-style: none; margin: 4px 0 0; padding: 0; width: 100%; max-width: 560px; }
+  ul { list-style: none; margin: 4px 0 0; padding: 0; width: 100%; }
   .task { display: flex; align-items: center; gap: 14px; text-align: left; padding: 14px 16px; margin-bottom: 10px;
     border-radius: 14px; border: 1px solid rgba(255,255,255,.14); background: rgba(6,14,11,.5); backdrop-filter: blur(8px);
     cursor: pointer; transition: transform .12s ease; }
