@@ -97,6 +97,9 @@
   .task textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 10px; padding: 12px 14px;
     font: inherit; font-size: 15px; line-height: 1.5; color: #e8f6f1; min-height: 92px; resize: none; overflow: hidden;
     border-radius: 12px; border: 1px solid rgba(160,200,255,.28); background: rgba(6,14,11,.5); }
+  .io { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 6px; }
+  .io .chip { font-family: inherit; font-size: 12px; padding: 5px 12px; }
+  #ioMsg { font-size: 12px; font-weight: 700; color: #bfeede; }
   .empty { color: #a7c4bc; font-size: 15px; padding: 8px 2px; }
   .task.leaving { animation: pop .28s ease forwards; }
   @keyframes pop { to { transform: scale(.82); opacity: 0; } }
@@ -131,6 +134,13 @@
     </form>
     <ul id="list"></ul>
   </section>
+
+  <div class="io">
+    <button class="chip" id="export" type="button">⬇ Export</button>
+    <label class="chip" for="importFile">⬆ Import</label>
+    <input id="importFile" type="file" accept="application/json,.json" hidden>
+    <span id="ioMsg"></span>
+  </div>
 </div>
 
 <script>
@@ -647,11 +657,46 @@ document.querySelectorAll(".tab").forEach(el => el.onclick = () => {
   render();
 });
 
-document.querySelectorAll(".chip").forEach(el => el.onclick = () => {
-  document.querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === el));
+document.querySelectorAll("#filters .chip").forEach(el => el.onclick = () => {
+  document.querySelectorAll("#filters .chip").forEach(x => x.classList.toggle("on", x === el));
   statusFilter = el.dataset.s;
   render();
 });
+
+// ---------- export / import ----------
+// tasks live in this browser's localStorage only, so this is the way to move them between devices
+const msg = text => {
+  const el = document.getElementById("ioMsg");
+  el.textContent = text;
+  setTimeout(() => { if (el.textContent === text) el.textContent = ""; }, 4000);
+};
+
+document.getElementById("export").onclick = () => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(tasks, null, 2) + "\n"], { type: "application/json" }));
+  a.download = `todo-${todayStr()}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  msg(`Exported ${tasks.length} task${tasks.length === 1 ? "" : "s"}`);
+};
+
+document.getElementById("importFile").onchange = async e => {
+  const file = e.target.files[0];
+  e.target.value = "";                       // so the same file can be picked twice
+  if (!file) return;
+  let incoming;
+  try { incoming = JSON.parse(await file.text()); }
+  catch { return msg("That file isn't valid JSON"); }
+  if (!Array.isArray(incoming)) return msg("That doesn't look like a todo export");
+
+  const good = incoming.filter(t => t && typeof t.text === "string" && typeof t.id === "string" && typeof t.date === "string");
+  const byId = new Map(tasks.map(t => [t.id, t]));   // merge, don't replace: this device may hold tasks the file doesn't
+  const before = byId.size;
+  good.forEach(t => byId.set(t.id, t));
+  tasks = [...byId.values()];
+  save(tasks); render();
+  msg(`Imported ${good.length} — ${byId.size - before} new, ${good.length - (byId.size - before)} updated`);
+};
 
 render();
 
