@@ -70,7 +70,7 @@
     color: #062018; background: linear-gradient(90deg,#9df0ff,#8fe6c2); box-shadow: 0 0 22px rgba(140,240,210,.4); }
 
   ul { list-style: none; margin: 4px 0 0; padding: 0; width: 100%; }
-  .task { display: flex; align-items: center; gap: 16px; text-align: left; padding: 20px 22px; margin-bottom: 12px;
+  .task { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; row-gap: 10px; text-align: left; padding: 20px 22px; margin-bottom: 12px;
     border-radius: 16px; border: 2px solid rgba(160,200,255,.30); background: rgba(14,18,40,.62); backdrop-filter: blur(8px);
     box-shadow: 0 6px 22px rgba(0,0,0,.4); cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; }
   .task:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,0,0,.5); border-color: rgba(160,200,255,.5); }
@@ -88,6 +88,15 @@
   .task option[value=yet]   { color: #ff6b6b; }
   .task option[value=doing] { color: #ffd166; }
   .task option[value=done]  { color: #6ee7a8; }
+  /* notes live on their own row inside the card: flex-basis 100% pushes them below */
+  .task details { flex: 1 0 100%; }
+  .task summary { list-style: none; width: max-content; font-size: 12px; font-weight: 700; letter-spacing: .03em;
+    color: #bfeede; cursor: pointer; padding: 4px 12px; border-radius: 999px;
+    background: rgba(143,230,194,.14); border: 1px solid rgba(143,230,194,.35); }
+  .task summary::-webkit-details-marker { display: none; }
+  .task textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 10px; padding: 12px 14px;
+    font: inherit; font-size: 15px; line-height: 1.5; color: #e8f6f1; min-height: 92px; resize: none; overflow: hidden;
+    border-radius: 12px; border: 1px solid rgba(160,200,255,.28); background: rgba(6,14,11,.5); }
   .empty { color: #a7c4bc; font-size: 15px; padding: 8px 2px; }
   .task.leaving { animation: pop .28s ease forwards; }
   @keyframes pop { to { transform: scale(.82); opacity: 0; } }
@@ -561,7 +570,7 @@ function render() {
 function row(t) {
   const li = document.createElement("li");
   li.className = "task" + (t.id === activeId ? " active" : "");
-  li.onclick = e => { if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;   // clicking the card focuses it (electric border)
+  li.onclick = e => { if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.closest("details")) return;   // clicking the card focuses it (electric border)
     activeId = (activeId === t.id) ? null : t.id; render(); };
 
   const cb = document.createElement("input");
@@ -579,7 +588,7 @@ function row(t) {
     STATUSES.forEach(([v, label]) => sel.add(new Option(label, v, false, v === (t.status || "yet"))));
     sel.dataset.s = t.status || "yet";
     sel.onchange = () => { t.status = sel.dataset.s = sel.value; save(tasks); render(); };   // re-render: it may no longer match the filter
-    li.append(sel);
+    li.append(sel, notes(t));
   } else if (tab === "pending" || tab === "tomorrow") {
     const d = document.createElement("span");
     d.className = "date";
@@ -587,6 +596,27 @@ function row(t) {
     li.append(d);
   }
   return li;
+}
+
+// long-term only: a native <details> so collapsing needs no JS
+function notes(t) {
+  const d = document.createElement("details");
+  const sum = document.createElement("summary");
+  const ta = document.createElement("textarea");
+
+  ta.value = t.note || "";
+  ta.placeholder = "Where am I on this?";
+  const fit = () => { ta.style.height = "auto"; ta.style.height = (ta.scrollHeight + 2) + "px"; };   // grow with the text — never a scrollbar (+2 = the border, box-sizing eats it)
+  ta.oninput = () => { t.note = ta.value; sum.textContent = label(); fit(); save(tasks); };    // no render(): it would blow away focus
+
+  const label = () => "Notes" + (t.note ? " •" : "");
+  sum.textContent = label();
+
+  d.open = !!t.noteOpen;                                             // set before ontoggle so it doesn't fire on build
+  d.ontoggle = () => { t.noteOpen = d.open; if (d.open) fit(); save(tasks); };   // survives a re-render (status change, filter); can only measure while open
+  d.append(sum, ta);
+  if (d.open) requestAnimationFrame(fit);   // scrollHeight is only real once it's laid out
+  return d;
 }
 
 // completing a task deletes it forever — never stored
